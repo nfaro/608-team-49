@@ -23,7 +23,7 @@ const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
-char username[200] = { "Caleb4" };
+char username[200] = { "Caleb5" };
 char roomname[200];
 char action[10];
 
@@ -31,13 +31,15 @@ uint32_t primary_timer;
 
 int old_val;
 
-enum MENU {Main_Menu, Song_Menu, Instrument_Menu, Multiplayer_Menu, Host_Waiting_Room, Join_Waiting_Room, UserNameInput, HostRoomNameInput, JoinRoomNameInput, PlaySong} menu = Multiplayer_Menu;
+enum MENU {UserNameInput, Player_Choice, Multiplayer_Menu, HostRoomNameInput, 
+  Host_Waiting_Room, JoinRoomNameInput, Join_Waiting_Room, 
+  Song_Menu, Instrument_Menu, PlaySong} menu = UserNameInput;
 
-const char *menu_choices[3] = { "Choose Song", "Choose Instrument" };
 const char *song_choices[3] = { "Song 1", "Song 2" };
 const char *instrument_choices[3] = { "Guitar", "Drums" };
 const char *multiplayer_choices[4] = { "Host Room", "Join Room", "View Rooms" };
 const char *host_waiting_choices[3] = { "Start", "Cancel" };
+const char *player_choices[3] = { "Singleplayer", "Multiplayer" };
 
 char song_choice[200];
 char instrument[200];
@@ -238,7 +240,7 @@ class NameGetter {
     }
 };
 
-NameGetter ng("Input Username after long press.", PlaySong, username, false);
+NameGetter ng("Input Username after long press.", Player_Choice, username, false);
 NameGetter room_ng("Input Room name after long press.", Host_Waiting_Room, roomname, true);
 Button button(SELECT_BUTTON_PIN);
 Button change_button(CHANGE_BUTTON_PIN);
@@ -260,7 +262,7 @@ class Menu {
     }
 };
 
-class MainMenu: public Menu {
+class PlayerChoiceMenu: public Menu {
   public:
     int update(int change_button, int select_button) {
       if (change_button == 1) {
@@ -270,7 +272,7 @@ class MainMenu: public Menu {
         if (choice == 0) {
           menu = Song_Menu;
         } else if (choice == 1) {
-          menu = Instrument_Menu;
+          menu = Multiplayer_Menu;
         }
       }
       return choice;
@@ -286,7 +288,7 @@ class SongMenu: public Menu {
       }
       if (select_button == 1) {
         strcpy(song_choice, song_choices[choice]);
-        menu = HostRoomNameInput;
+        menu = Instrument_Menu;
       }
       return choice;
     }
@@ -301,7 +303,7 @@ class InstrumentMenu: public Menu {
       }
       if (select_button == 1) {
         strcpy(instrument, instrument_choices[choice]);
-        menu = Main_Menu;
+        menu = PlaySong;
       }
 
       return choice;
@@ -353,12 +355,11 @@ class HostWaitingRoomMenu: public Menu {
     }
 };
 
-
-MainMenu main_menu;
 InstrumentMenu instrument_menu;
 SongMenu song_menu;
 MultiplayerMenu multiplayer_menu;
 HostWaitingRoomMenu hostWaitingRoomMenu;
+PlayerChoiceMenu player_choice_menu;
 
 void setup() {
   Serial.begin(115200); //for debugging if needed.
@@ -401,25 +402,18 @@ void setup() {
 
   tft.fillScreen(TFT_BLACK);
   tft.setCursor(0, 0, 1);
-  for (int i = 0; i < 3; i++) {
-    if (i == 0) {
-      tft.setTextColor(TFT_WHITE, TFT_GREEN);
-      tft.println(multiplayer_choices[i]);
-      tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    } else {
-      tft.println(multiplayer_choices[i]);
-    }
-  }
 }
 
 
-MENU last_menu = Multiplayer_Menu;
+MENU last_menu = UserNameInput;
 int last_choice = 0;
-bool change = false;
+bool change = true;
+
 void loop() {
   int change_button_val = change_button.update();
   int select_button_val = button.update();
   int choice = 0;
+
   if (menu == Multiplayer_Menu) {
     choice = multiplayer_menu.update(change_button_val, select_button_val);
     if (change) {
@@ -523,22 +517,6 @@ void loop() {
       choice = last_choice;
       change = false;
     }
-  } else if (menu == Main_Menu) {
-    choice = main_menu.update(change_button_val, select_button_val);
-    if (change) {
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      for (int i = 0; i < 2; i++) {
-        if (i == choice) {
-          tft.setTextColor(TFT_WHITE, TFT_GREEN);
-          tft.println(menu_choices[i]);
-          tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        } else {
-          tft.println(menu_choices[i]);
-        }
-      }
-      change = false;
-    }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
     if (change) {
@@ -585,7 +563,23 @@ void loop() {
     while (millis() - primary_timer < LOOP_PERIOD); //wait for primary timer to increment
     primary_timer = millis();
     choice = last_choice;
-  }  
+  } else if (menu == Player_Choice) {
+    choice = player_choice_menu.update(change_button_val, select_button_val);
+    if (change) {
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0, 1);
+      for (int i = 0; i < 3; i++) {
+        if (i == choice) {
+          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.println(player_choices[i]);
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        } else {
+          tft.println(player_choices[i]);
+        }
+      }
+      change = false;
+    }
+  }
 
   if (choice != last_choice || menu != last_menu) {
     change = true;
