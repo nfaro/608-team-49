@@ -10,6 +10,7 @@ const int SCREEN_HEIGHT = 160;
 const int SCREEN_WIDTH = 128;
 const int SELECT_BUTTON_PIN = 5;
 const int CHANGE_BUTTON_PIN = 19;
+const int REVERSE_BUTTON_PIN = 21;
 const int LOOP_PERIOD = 40;
 
 MPU6050 imu; //imu object called, appropriately, imu
@@ -23,7 +24,7 @@ const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
-char username[200] = { "Caleb5" };
+char username[200];
 char roomname[200];
 char action[10];
 
@@ -244,6 +245,7 @@ NameGetter ng("Input Username after long press.", Player_Choice, username, false
 NameGetter room_ng("Input Room name after long press.", Host_Waiting_Room, roomname, true);
 Button button(SELECT_BUTTON_PIN);
 Button change_button(CHANGE_BUTTON_PIN);
+Button reverse_button(REVERSE_BUTTON_PIN);
 
 class Menu {
   public:
@@ -343,6 +345,18 @@ class HostWaitingRoomMenu: public Menu {
       }
       if (select_button == 1) {
         if (choice == 0) {
+          char request[500];
+          char body[200];
+          sprintf(body, "user=%s&roomname=%s&action=ready&password=PASSWORD", username, roomname);
+          Serial.println("finishes thing");
+          sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+          sprintf(request + strlen(request), "Host: %s\r\n", host);
+          strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+          sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+          strcat(request, body);
+          Serial.println("Finishes copying");
+          do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+          Serial.println(response);
           menu = Song_Menu;
           Serial.println(menu);
           //READY UP!
@@ -412,6 +426,7 @@ bool change = true;
 void loop() {
   int change_button_val = change_button.update();
   int select_button_val = button.update();
+  int reverse_button_val = reverse_button.update();
   int choice = 0;
 
   if (menu == Multiplayer_Menu) {
@@ -432,8 +447,9 @@ void loop() {
     }
   } else if (menu == HostRoomNameInput) {
     int right_value = !digitalRead(CHANGE_BUTTON_PIN);
+    int left_value = !digitalRead(REVERSE_BUTTON_PIN);
     strcpy(action, "create");
-    room_ng.update(0, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
+    room_ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
@@ -478,8 +494,9 @@ void loop() {
     }
   } else if (menu == JoinRoomNameInput) {
     int right_value = !digitalRead(CHANGE_BUTTON_PIN);
+    int left_value = !digitalRead(REVERSE_BUTTON_PIN);
     strcpy(action, "join");
-    room_ng.update(0, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
+    room_ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
@@ -500,6 +517,9 @@ void loop() {
       sprintf(request + strlen(request), "Host: %s\r\n\r\n", host);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
+      if(strstr(response, "Readying") != NULL){
+        menu = Song_Menu;
+      }
       change = true;
     }
      if (change) {
@@ -551,7 +571,8 @@ void loop() {
     }
   } else if (menu == UserNameInput) {
     int right_value = !digitalRead(CHANGE_BUTTON_PIN);
-    ng.update(0, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
+    int left_value = !digitalRead(REVERSE_BUTTON_PIN);
+    ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
