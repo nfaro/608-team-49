@@ -91,8 +91,8 @@ def request_handler(request):
                     is_available = False
                     break
             if is_available:
-                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?);''', 
-                         (roomname, password, username, None, None, None, None))
+                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
+                         (roomname, password, username, None, None, None, None, 0))
                 conn.commit()
                 conn.close()
                 pub_or_priv = 'private' if password else 'public'
@@ -113,8 +113,8 @@ def request_handler(request):
                             if not room_copy[i]:
                                 room_copy = room_copy[:i] + (username,) + room_copy[i+1:]
                                 c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
-                                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?);''', 
-                                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6]))
+                                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
+                                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7]))
                                 conn.commit()
                                 conn.close()
                                 return "Sucessfully joined " + room_copy[0]
@@ -152,8 +152,8 @@ def request_handler(request):
                                 break
                     else:
                         room_copy = room_copy[:delete_idx] + (None,) + room_copy[delete_idx+1:]
-                    c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?);''', 
-                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6]))
+                    c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
+                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7]))
                     conn.commit()
                     conn.close()
                     return "Left " + room_copy[0]
