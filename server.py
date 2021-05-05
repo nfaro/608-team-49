@@ -164,11 +164,10 @@ def request_handler(request):
             for room in all_rooms:
                 if username in room:
                     if room[2] == username:
-                        room[7] = 1 #room locked
-                        # all_players = username
-                        # for i in range(3,7):
-                        #     if room[i]:
-                        #         all_players += "," + room[i]
+                        room_copy = room
+                        c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
+                        c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
+                        (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], 1))                        
                         conn.commit()
                         conn.close()
                         return "Readying up..."
