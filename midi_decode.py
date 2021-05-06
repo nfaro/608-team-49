@@ -34,10 +34,11 @@ def generate_ESP_file(path, output_filename):
 	    for note in instrument.notes:
 	    	time = seconds_to_milliseconds(note.start)
 	    	pitch = get_ESP_note(note.pitch)
+	    	duration = seconds_to_milliseconds(note.end - note.start)	    	
 	    	if time in time_pitch:
-	    		time_pitch[time].append(pitch)
+	    		time_pitch[time]["pitch"].append(pitch)
 	    	else:
-	    		time_pitch[time] = [pitch]
+	    		time_pitch[time] = {"pitch": [pitch], "duration": duration}
 
 	out = ""
 	times = sorted(list(time_pitch.keys()))
@@ -48,20 +49,22 @@ def generate_ESP_file(path, output_filename):
 
 	for time in times:
 		section = ""
-		for note in time_pitch[time]:
+		for note in time_pitch[time]["pitch"]:
 			section += str(note)
+		out += section + '\n'
 
-
+	out += "#"
+	for time in times:
+		section = str(time_pitch[time]["duration"])
 		out += section + '\n'
 	
 	with open("{}/{}".format(SAVE_FOLDER, output_filename), "w") as f:
 		f.write(out)
-	print(out)
-
+# path_to_file = "midi_files/less_i_know_the_better.mid"
+# out_path_name = "debug"
 path_to_file = input("Path to MIDI File: ")
 out_path_name = input("Output Filename: ")
 generate_ESP_file(path_to_file, out_path_name)
-
 
 
 
