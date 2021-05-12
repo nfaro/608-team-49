@@ -2,8 +2,8 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <mpu6050_esp32.h>
-#include<math.h>
-#include<string.h>
+#include <math.h>
+#include <string.h>
 
 TFT_eSPI tft = TFT_eSPI();
 const int SCREEN_HEIGHT = 160;
@@ -18,12 +18,14 @@ MPU6050 imu; //imu object called, appropriately, imu
 char network[] = "MIT";  //SSID for 6.08 Lab
 char password[] = ""; //Password for 6.08 Lab
 
+
 //Some constants and some resources:
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
+
 char username[200];
 char roomname[200];
 char action[10];
@@ -31,10 +33,11 @@ char action[10];
 uint32_t primary_timer;
 
 int old_val;
+bool ready = false;
 
 enum MENU {UserNameInput, Player_Choice, Multiplayer_Menu, HostRoomNameInput, 
   Host_Waiting_Room, JoinRoomNameInput, Join_Waiting_Room, 
-  Song_Menu, Instrument_Menu, PlaySong} menu = UserNameInput;
+  Song_Menu, Instrument_Menu, Waiting_Room, PlaySong} menu = UserNameInput;
 
 const char *song_choices[3] = { "Song 1", "Song 2" };
 const char *instrument_choices[3] = { "Guitar", "Drums" };
@@ -51,7 +54,6 @@ void get_angle(float* x, float* y) {
   *x = imu.accelCount[0] * imu.aRes;
   *y = imu.accelCount[1] * imu.aRes;
 }
-
 
 class Button {
   public:
@@ -305,7 +307,8 @@ class InstrumentMenu: public Menu {
       }
       if (select_button == 1) {
         strcpy(instrument, instrument_choices[choice]);
-        menu = PlaySong;
+        ready = true;
+        menu = Waiting_Room;
       }
 
       return choice;
@@ -368,6 +371,8 @@ class HostWaitingRoomMenu: public Menu {
       return choice;
     }
 };
+
+class 
 
 InstrumentMenu instrument_menu;
 SongMenu song_menu;
@@ -522,7 +527,7 @@ void loop() {
       }
       change = true;
     }
-     if (change) {
+    if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
       tft.println(response);
@@ -530,12 +535,30 @@ void loop() {
     }
   } else if (menu == PlaySong) {
     if (change) {
+      tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
       tft.println("Playing song rn");
       tft.println(username);
       tft.println(instrument);
       choice = last_choice;
+
+      char request[500];
+      char body[200];
+      sprintf(body, "user=%s&roomname=%s&action=play&password=PASSWORD", username, roomname);
+      Serial.println("finishes thing");
+      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+      sprintf(request + strlen(request), "Host: %s\r\n", host);
+      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+      strcat(request, body);
+      Serial.println("Finishes copying");
+      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+
+      delay(atoi(response));
       change = false;
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0, 1);
+      tft.println("Playing");
     }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
@@ -600,6 +623,49 @@ void loop() {
       }
       change = false;
     }
+  } else if (menu == Waiting_Room) {
+    if(ready){
+      ready = false;
+      char request[500];
+      char body[200];
+      sprintf(body, "user=%s&roomname=%s&action=play&password=PASSWORD", username, roomname);
+      Serial.println("finishes thing");
+      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+      sprintf(request + strlen(request), "Host: %s\r\n", host);
+      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+      strcat(request, body);
+      Serial.println("Finishes copying");
+      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+    }
+    else if(millis() - primary_timer > 2000){
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0, 1);
+      tft.println("Waiting");
+      tft.println(username);
+      tft.println(instrument);
+      choice = last_choice;
+      primary_timer = millis();
+
+      char request[500];
+      char body[200];
+      sprintf(body, "user=%s&roomname=%s&action=waiting&password=PASSWORD", username, roomname);
+      Serial.println("finishes thing");
+      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+      sprintf(request + strlen(request), "Host: %s\r\n", host);
+      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+      strcat(request, body);
+      Serial.println("Finishes copying");
+      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+      if(strstr(response, "Waiting") == NULL){
+        Serial.println(response);
+        Serial.println(millis());
+        delay(atoi(response));
+        Serial.println(millis());
+        menu = PlaySong;
+      }
+    }
   }
 
   if (choice != last_choice || menu != last_menu) {
@@ -608,7 +674,6 @@ void loop() {
 
   last_menu = menu;
   last_choice = choice;
-
 }
 
 /*----------------------------------
