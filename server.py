@@ -1,5 +1,6 @@
 import sqlite3
 import datetime
+import time
 
 rooms_db = '/var/jail/home/team49/room_info.db'
 
@@ -20,7 +21,7 @@ def request_handler(request):
         if len(username) > 16 or len(username) < 1: return "Please provide a nonempty username with no more than 16 characters"
         conn = sqlite3.connect(rooms_db)
         c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer);''')
+        c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer, host_play integer, player2_play integer, player3_play integer, player4_play integer, player5_play integer, start_time real);''')
         # in_room = c.execute('''SELECT * FROM rooms_table WHERE user LIKE '%s';'''%(username)).fetchone()
         # if in_room:
         #     current_room = "Current room: " + in_room[0] + "\n"
@@ -57,7 +58,9 @@ def request_handler(request):
                 room_list += " - Private"
             else:
                 room_list += " - Public"
-            if is_full: 
+            if room[7]:
+                room_list += " (IN GAME)"
+            elif is_full: 
                 room_list += " (FULL)"
         conn.commit()
         conn.close()
@@ -79,7 +82,7 @@ def request_handler(request):
 
         conn = sqlite3.connect(rooms_db)  # connect to that database (will create if it doesn't already exist)
         c = conn.cursor()  # move cursor into database (allows us to execute commands)
-        c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer);''')
+        c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer, host_play integer, player2_play integer, player3_play integer, player4_play integer, player5_play integer, start_time real);''')
         all_rooms =  c.execute('''SELECT * FROM rooms_table''').fetchall()
         if action == 'create':
             for room in all_rooms:
@@ -91,8 +94,8 @@ def request_handler(request):
                     is_available = False
                     break
             if is_available:
-                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
-                         (roomname, password, username, None, None, None, None, 0))
+                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                         (roomname, password, username, None, None, None, None, 0, 0, None, None, None, None, None))
                 conn.commit()
                 conn.close()
                 pub_or_priv = 'private' if password else 'public'
@@ -107,14 +110,17 @@ def request_handler(request):
                     return "You are already in a room"
             for room in all_rooms:
                 if room[0] == roomname:
+                    if room[7]:
+                        return "This room is already in a game"
                     if not room[1] or password == room[1]:
                         room_copy = room
                         for i in range(2,7):
                             if not room_copy[i]:
                                 room_copy = room_copy[:i] + (username,) + room_copy[i+1:]
                                 c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
-                                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
-                                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7]))
+                                c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7],
+                                          room_copy[8], room_copy[9], room_copy[10],room_copy[11],room_copy[12],room_copy[13]))
                                 conn.commit()
                                 conn.close()
                                 return "Sucessfully joined " + room_copy[0]
@@ -130,6 +136,8 @@ def request_handler(request):
         elif action == 'leave':
             for room in all_rooms:
                 if username in room:
+                    if room[7]:
+                        return "You cannot leave in the middle of a game"
                     room_copy = room
                     is_empty = True
                     is_host = False
@@ -152,8 +160,9 @@ def request_handler(request):
                                 break
                     else:
                         room_copy = room_copy[:delete_idx] + (None,) + room_copy[delete_idx+1:]
-                    c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
-                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7]))
+                    c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                             (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7],
+                              room_copy[8], room_copy[9], room_copy[10],room_copy[11],room_copy[12],room_copy[13]))
                     conn.commit()
                     conn.close()
                     return "Left " + room_copy[0]
@@ -166,14 +175,54 @@ def request_handler(request):
                     if room[2] == username:
                         room_copy = room
                         c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
-                        c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?);''', 
-                        (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], 1))                        
+                        c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                             (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], 1,
+                              room_copy[8], room_copy[9], room_copy[10],room_copy[11],room_copy[12],room_copy[13]))             
                         conn.commit()
                         conn.close()
                         return "Readying up..."
                     else:
                         return "Only the host can ready up"
             return "You must be the host of a room in order to ready up"  
+        elif action == 'play':
+            for room in all_rooms:
+                if username in room:
+                    play_idx = 0
+                    existing_index = []
+                    for i in range(2,7):
+                        if room[i] == username:
+                            play_idx = i+6
+                        if room[i]:
+                            existing_index.append(i)
+                    room_copy = room[:play_idx] + (1,) + room[play_idx+1:]
+                    c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
+                    c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                         (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7],
+                          room_copy[8], room_copy[9], room_copy[10],room_copy[11],room_copy[12],room_copy[13]))             
+                    conn.commit()
+                    conn.close()
+                    all_play = True
+                    for idx in existing_index:
+                        if not room_copy[idx+6]:
+                            all_play = False
+                            break
+                    if all_play:
+                        conn = sqlite3.connect(rooms_db)
+                        c = conn.cursor()
+                        c.execute('''DELETE FROM rooms_table WHERE roomname LIKE '%s';'''%(room_copy[0]))
+                        c.execute('''INSERT into rooms_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);''', 
+                             (room_copy[0], room_copy[1], room_copy[2], room_copy[3], room_copy[4], room_copy[5], room_copy[6], room_copy[7],
+                              room_copy[8], room_copy[9], room_copy[10], room_copy[11], room_copy[12], time.time()+5))
+                        conn.commit()
+                        conn.close()
+                    return 'Waiting...'
+        elif action == 'waiting':
+            for room in all_rooms:
+                if username in room:
+                    if room[13]:
+                        return str(int((room[13] - time.time())*1000))
+                    else:
+                        return "Waiting..."
         conn.commit()
         conn.close()   
         return "Please choose if you want to create, join, or leave a room"
