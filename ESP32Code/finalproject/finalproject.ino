@@ -8,9 +8,9 @@
 TFT_eSPI tft = TFT_eSPI();
 const int SCREEN_HEIGHT = 160;
 const int SCREEN_WIDTH = 128;
-const int SELECT_BUTTON_PIN = 5;
-const int CHANGE_BUTTON_PIN = 19;
-const int REVERSE_BUTTON_PIN = 21;
+const int SELECT_BUTTON_PIN = 0;
+const int CHANGE_BUTTON_PIN = 5;
+const int REVERSE_BUTTON_PIN = 14;
 const int LOOP_PERIOD = 40;
 
 MPU6050 imu; //imu object called, appropriately, imu
@@ -37,16 +37,18 @@ bool ready = false;
 
 enum MENU {UserNameInput, Player_Choice, Multiplayer_Menu, HostRoomNameInput, 
   Host_Waiting_Room, JoinRoomNameInput, Join_Waiting_Room, 
-  Song_Menu, Instrument_Menu, Waiting_Room, PlaySong} menu = UserNameInput;
+  Song_Menu, Instrument_Menu, Difficulty_Menu, Waiting_Room, PlaySong} menu = UserNameInput;
 
 const char *song_choices[3] = { "Song 1", "Song 2" };
 const char *instrument_choices[3] = { "Guitar", "Drums" };
 const char *multiplayer_choices[4] = { "Host Room", "Join Room", "View Rooms" };
 const char *host_waiting_choices[3] = { "Start", "Cancel" };
 const char *player_choices[3] = { "Singleplayer", "Multiplayer" };
+const char *difficulty_choices[5] = {"Easy", "Medium", "Hard","Expert"};
 
 char song_choice[200];
 char instrument[200];
+char difficulty[200]; 
 
 //used to get x,y values from IMU accelerometer!
 void get_angle(float* x, float* y) {
@@ -308,7 +310,7 @@ class InstrumentMenu: public Menu {
       if (select_button == 1) {
         strcpy(instrument, instrument_choices[choice]);
         ready = true;
-        menu = Waiting_Room;
+        menu = Difficulty_Menu;
       }
 
       return choice;
@@ -365,6 +367,7 @@ class HostWaitingRoomMenu: public Menu {
           //READY UP!
         } else if (choice == 1) {
           menu = Multiplayer_Menu;
+          reset_menu();
           Serial.println(menu);
         }
       }
@@ -372,13 +375,28 @@ class HostWaitingRoomMenu: public Menu {
     }
 };
 
-class 
+class DifficultyMenu: public Menu {
+  public:
+    int update(int change_button, int select_button) {
+      if (change_button == 1) {
+        choice = (choice + 1) % 4;
+        Serial.println(choice);
+      }
+      if (select_button == 1) {
+        strcpy(difficulty, difficulty_choices[choice]);
+        menu = Waiting_Room;
+      }
+
+      return choice;
+    }
+};
 
 InstrumentMenu instrument_menu;
 SongMenu song_menu;
 MultiplayerMenu multiplayer_menu;
 HostWaitingRoomMenu hostWaitingRoomMenu;
 PlayerChoiceMenu player_choice_menu;
+DifficultyMenu difficulty_menu;
 
 void setup() {
   Serial.begin(115200); //for debugging if needed.
@@ -402,13 +420,13 @@ void setup() {
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
   }
-  if (imu.setupIMU(1)) {
-    Serial.println("IMU Connected!");
-  } else {
-    Serial.println("IMU Not Connected :/");
-    Serial.println("Restarting");
-    ESP.restart(); // restart the ESP (proper way)
-  }
+  // if (imu.setupIMU(1)) {
+  //   Serial.println("IMU Connected!");
+  // } else {
+  //   Serial.println("IMU Not Connected :/");
+  //   Serial.println("Restarting");
+  //   ESP.restart(); // restart the ESP (proper way)
+  // }
   tft.init();
   tft.setRotation(2);
   tft.setTextSize(1);
@@ -424,6 +442,14 @@ void setup() {
 }
 
 
+//FOR SONG
+// action = “startgame”
+// user = username
+// song
+// instrument
+// difficulty
+
+
 MENU last_menu = UserNameInput;
 int last_choice = 0;
 bool change = true;
@@ -433,6 +459,7 @@ void loop() {
   int select_button_val = button.update();
   int reverse_button_val = reverse_button.update();
   int choice = 0;
+  Serial.println(select_button_val);
 
   if (menu == Multiplayer_Menu) {
     choice = multiplayer_menu.update(change_button_val, select_button_val);
@@ -523,7 +550,7 @@ void loop() {
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
       if(strstr(response, "Readying") != NULL){
-        menu = Song_Menu;
+        menu = Instrument_Menu;
       }
       change = true;
     }
@@ -541,24 +568,7 @@ void loop() {
       tft.println(username);
       tft.println(instrument);
       choice = last_choice;
-
-      char request[500];
-      char body[200];
-      sprintf(body, "user=%s&roomname=%s&action=play&password=PASSWORD", username, roomname);
-      Serial.println("finishes thing");
-      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
-      sprintf(request + strlen(request), "Host: %s\r\n", host);
-      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
-      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
-      strcat(request, body);
-      Serial.println("Finishes copying");
-      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-
-      delay(atoi(response));
       change = false;
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println("Playing");
     }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
@@ -572,6 +582,30 @@ void loop() {
           tft.setTextColor(TFT_GREEN, TFT_BLACK);
         } else {
           tft.println(instrument_choices[i]);
+        }
+      }
+      change = false;
+    }
+  } else if (menu == Difficulty_Menu) {
+    choice = difficulty_menu.update(change_button_val, select_button_val);
+    if (change) {
+      tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(12, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Pick a Difficulty:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int y_index[6] = {60, 75, 90, 105};
+      int x_index[6] = {52, 45, 52, 46};
+      for (int i = 0; i < 4; i++) {
+        tft.setCursor(x_index[i], y_index[i], 1);
+        if (i == choice) {
+          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.println(difficulty_choices[i]);
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        } else {
+          tft.println(difficulty_choices[i]);
         }
       }
       change = false;
@@ -598,8 +632,25 @@ void loop() {
     ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println(response);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(8, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Enter your username");
+      tft.setCursor(50, 42, 1);
+      tft.println("below:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int newIndex = 60 - (strlen(response)) * 2.5;
+      tft.setCursor(newIndex, 70, 1);
+      char temp[100] = "";
+      if (strlen(response) != 1) {
+        strncpy(temp, response, strlen(response) - 1);
+        temp[strlen(response)-1] = '\0';
+      }
+      tft.print(temp);
+      tft.setTextColor(TFT_BLACK, TFT_GREEN);
+      tft.print(response[strlen(response)-1]);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
       change = false;
     }
     memset(old_response, 0, sizeof(old_response));
