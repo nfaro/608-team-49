@@ -55,10 +55,10 @@ def generate_ESP_file(path, output_filename):
 			section += str(note)
 		out += section + '\n'
 
-	# out += "#"
-	# for time in times:
-	# 	section = str(time_pitch[time]["duration"])
-	# 	out += section + '\n'
+	out += "#"
+	for time in times:
+		section = str(time_pitch[time]["duration"])
+		out += section + '\n'
 	
 	with open("{}/{}".format(SAVE_FOLDER, output_filename), "w") as f:
 		f.write(out)
