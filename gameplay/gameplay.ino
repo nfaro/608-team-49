@@ -17,8 +17,9 @@ int times[2000];
 int notes[2000];
 Note squares[100];
 
-int global_index = 0;
+int global_index = 1;
 int start;
+int score_index = 1;
 
 
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
@@ -36,6 +37,7 @@ const int BUTTON = 5;
 const int BUTTON2 = 14;
 const int BUTTON3 = 15;
 const int BUTTON4 = 0;
+
 int points = 0;
 int ammount = 0;
 int ammount1 = 0;
@@ -121,11 +123,23 @@ void setup() {
     times[i] += 4000;
     
   }
-  global_index = 0;
+  global_index = 1;
   start = 0;
 
   tft.setCursor(0, 0, 2); //set cursor, font size 1
   
+}
+bool detect_note(){
+  if(millis() + 70 >= times[score_index] && millis() - 150 <= times[score_index]){
+    return true;
+  }
+  else if(millis() -151 > times[score_index]){
+    score_index += 1;
+    return false;
+  }
+  else{
+    return false;
+  }
 }
 
 void draw_notes(){
@@ -162,13 +176,14 @@ void draw_notes(){
 
   // Access attributes and set values
   
-  Serial.println("this is the start");
-  Serial.println(start);
+//  Serial.println("this is the start");
+//  Serial.println(start);
   tft.fillScreen(TFT_BLACK);
   tft.fillRect(0, 140, 160, 1, TFT_GREEN);
+  for (int i
   for (int i = 0; i < 100; i++){
       tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 30, 15, TFT_GREEN);
-      squares[i].y_coordinate += 2 ;
+      squares[i].y_coordinate += 2;
 
   }
   
@@ -177,64 +192,86 @@ void draw_notes(){
 
 
 void loop() {
-  draw_notes();
-//  points+= ammount+ammount1+ammount2+ammount3;
-  if (!digitalRead(BUTTON)) {
-    ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
-
-//    tft.fillScreen(TFT_BLACK);
-    tft.setCursor(0,0,1);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-//    tft.print(points);
-//    ammount = 1;
+  if(times[score_index] > 34000 && score_index > 10){
+    tft.fillScreen(TFT_BLACK);
   }
   else{
-    ledcWrite(PWM_CHANNEL, 0);
-//    ammount = 0;
+    draw_notes();
+    if(detect_note){
+      if (notes[score_index] == 1){
+        if (!digitalRead(BUTTON3)){
+          ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
+          ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
+          score_index += 1;
+          points += 1;
+        }
+        else{
+          ledcWrite(PWM_CHANNEL5, 0);
+          ledcWrite(PWM_CHANNEL4, 0);
+        }
+      }
+      if (notes[score_index] == 2){
+        if (!digitalRead(BUTTON2)){
+          ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
+          score_index += 1;
+          points += 1;
+        }
+        else{
+          ledcWrite(PWM_CHANNEL3, 0);
+        }
+      }
+      if (notes[score_index] == 3){
+        if(!digitalRead(BUTTON)){
+          ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
+          score_index += 1;
+          points += 1;
+        }
+        else{
+          ledcWrite(PWM_CHANNEL, 0);
+        }
+      }
+      if (notes[score_index] == 4){
+        if(!digitalRead(BUTTON4)){
+          ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
+          score_index += 1;
+          points += 1;
+        }
+        else{
+          ledcWrite(PWM_CHANNEL2, 0);
+        }
+      }
+      
+    }
+    if (!digitalRead(BUTTON)) {
+      ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
+    }
+    else{
+      ledcWrite(PWM_CHANNEL, 0);
+    }
+    if(!digitalRead(BUTTON4)){
+      ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
+    }
+    else{
+      ledcWrite(PWM_CHANNEL2, 0);
+    }
+    if (!digitalRead(BUTTON2)){
+      ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
+    }
+    else{
+      ledcWrite(PWM_CHANNEL3, 0);
+    }
+    if (!digitalRead(BUTTON3)){
+      ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
+      ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
+    }
+    else{
+      ledcWrite(PWM_CHANNEL5, 0);
+      ledcWrite(PWM_CHANNEL4, 0);
+  
+    }
+    delay(15);
   }
-  if(!digitalRead(BUTTON4)){
-    
-    ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
-//
-//    tft.fillScreen(TFT_BLACK);
-//    tft.setCursor(0,0,1);
-//    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-//    tft.print(points);
-//    ammount1 = 1;
-  }
-  else{
-    ledcWrite(PWM_CHANNEL2, 0);
-    ammount1 = 0;
-  }
-  if (!digitalRead(BUTTON2)){
-    ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
-
-//    tft.fillScreen(TFT_BLACK);
-//    tft.setCursor(0,0,1);
-//    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-//    tft.print(points);
-//    ammount2 = 1;
-  }
-  else{
-    ledcWrite(PWM_CHANNEL3, 0);
-//    ammount2 = 0;
-  }
-  if (!digitalRead(BUTTON3)){
-    ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
-    ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
-
-//    tft.fillScreen(TFT_BLACK);
-//    tft.setCursor(0,0,1);
-//    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-//    tft.print(points);
-//    ammount3 = 1;
-  }
-  else{
-    ledcWrite(PWM_CHANNEL5, 0);
-    ledcWrite(PWM_CHANNEL4, 0);
-//    ammount3 = 0;
-  }
-  delay(15);
+  
 
   
 }
