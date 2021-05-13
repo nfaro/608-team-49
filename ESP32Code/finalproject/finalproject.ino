@@ -676,6 +676,9 @@ void loop() {
     }
   } else if (menu == Waiting_Room) {
     if(ready){
+
+      //POST to get the song here. You will have to initialize the song variable as well, however you want to define it.
+
       ready = false;
       char request[500];
       char body[200];
