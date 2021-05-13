@@ -108,7 +108,7 @@ void setup() {
   uint8_t count = 0; //count used for Wifi check times
   Serial.print("Attempting to connect to ");
   Serial.println(network);
-  while (WiFi.status() != WL_CONNECTED && count < 12) {
+  while (WiFi.status() != WL_CONNECTED && count < 3) {
     delay(500);
     Serial.print(".");
     count++;
@@ -382,9 +382,9 @@ void random_delay() {
 
 
 void parse_song_file(char* song_file){
-  char time_char[1000];
-  char note_char[1000];
-  char duration_char[1000];
+  char time_char[2000];
+  char note_char[2000];
+  char duration_char[2000];
   int t = 0;
   int time_index = 0;
   int note_index = 0;
@@ -447,15 +447,12 @@ void parse_song_file(char* song_file){
   char note[10];
   int n_index = 0;
   note_index = 0;
+  Serial.println("NOTE PARSING");
   for (int i = 0; i < strlen(note_char); i++){
     if (note_char[i] == '\n'){
-        note[strlen(note)] = '\0';
-        if (strlen(note) > 1){
-          notes[note_index] = atoi(note);
-        }
-        else{
-          notes[note_index] = (int) note;
-        }
+        note[n_index] = '\0';
+        Serial.println(note);
+        notes[note_index] = atoi(note);
         note[0] ='\0';
         n_index = 0;
         note_index++;
@@ -486,15 +483,11 @@ void parse_song_file(char* song_file){
       
     }
   }
-  Serial.println("TIMES");
-  for (int i = 0; i < 100; i++){
-    Serial.println(times[i]);
-  }
-
   Serial.println("NOTES");
   for (int i = 0; i < 100; i++){
     Serial.println(notes[i]);
   }
+  
 
   
 }
