@@ -11,13 +11,13 @@ import datetime
 import glob
 import pathlib
 import os
-dict1 = {}
-for filename in os.listdir("ESP_song_files"):
-	if filename != ".DS_Store":
-		file = open("ESP_song_files/{}".format(filename))
-		song = file.read()
-		dict1[filename] = song
-print(repr(dict1))
+# dict1 = {}
+# for filename in os.listdir("ESP_song_files"):
+# 	if filename != ".DS_Store":
+# 		file = open("ESP_song_files/{}".format(filename))
+# 		song = file.read()
+# 		dict1[filename] = song
+# print(repr(dict1))
 
 
 rooms_db = '/var/jail/home/nfaro/room_info.db'
