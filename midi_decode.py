@@ -1,7 +1,9 @@
 
 import pretty_midi
+import os
 # Load MIDI file into PrettyMIDI object
 
+MIDI_FOLDER_NAME = "midi_files"
 SAVE_FOLDER = "ESP_song_files"
 
 BUTTON_1 = 60
@@ -62,9 +64,20 @@ def generate_ESP_file(path, output_filename):
 		f.write(out)
 # path_to_file = "midi_files/less_i_know_the_better.mid"
 # out_path_name = "debug"
-path_to_file = input("Path to MIDI File: ")
-out_path_name = input("Output Filename: ")
-generate_ESP_file(path_to_file, out_path_name)
+# path_to_file = input("Path to MIDI File: ")
+# out_path_name = input("Output Filename: ")
+# generate_ESP_file(path_to_file, out_path_name)
+
+midi_filenames = os.listdir(MIDI_FOLDER_NAME) # returns list
+for filename in midi_filenames:
+	if filename == ".DS_Store":
+		continue
+	else:
+		path_to_midi_file = "{}/{}".format(MIDI_FOLDER_NAME, filename)
+		output_filename = filename[:-4]
+		generate_ESP_file(path_to_midi_file, output_filename)
+
+
 
 
 
