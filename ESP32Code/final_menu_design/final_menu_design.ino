@@ -12,17 +12,20 @@ const int SELECT_BUTTON_PIN = 5;
 const int CHANGE_BUTTON_PIN = 19;
 const int REVERSE_BUTTON_PIN = 21;
 const int LOOP_PERIOD = 40;
+const int points = 150;
+int done =0;
 
 MPU6050 imu; //imu object called, appropriately, imu
 
-char network[] = "MIT Secure";  //SSID for 6.08 Lab
-char password[] = "12345678"; //Password for 6.08 Lab
+char network[] = "MIT Uncensored";  //SSID for 6.08 Lab
+char password[] = "E?3QjXep>&gy"; //Password for 6.08 Lab
 
 //Some constants and some resources:
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
+char leader_board_response[OUT_BUFFER_SIZE];
 char host[] = "608dev-2.net";
 char username[200];
 char roomname[200];
@@ -425,13 +428,7 @@ void setup() {
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
   }
-  if (imu.setupIMU(1)) {
-    Serial.println("IMU Connected!");
-  } else {
-    Serial.println("IMU Not Connected :/");
-    Serial.println("Restarting");
-    ESP.restart(); // restart the ESP (proper way)
-  }
+ 
   tft.init();
   tft.setRotation(2);
   tft.setTextSize(1);
@@ -574,19 +571,37 @@ void loop() {
       Serial.println(response);
     }
     if (change) {
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println("Information about current song being played:");
-      tft.println("");
-      tft.println(username);
-      tft.println("");
-      tft.println(song_choice);
-      tft.println("");
-      tft.println(instrument);
-      tft.println("");
-      tft.println(difficulty);
-      choice = last_choice;
-      change = false;
+      char request[500];
+      char body[200];
+      if(done){
+        Serial.println(leader_board_response);
+        tft.fillScreen(TFT_BLACK);
+        tft.setCursor(0, 0, 1);
+        tft.println(leader_board_response);
+        change = false;
+      }
+      else{
+        tft.fillScreen(TFT_BLACK);
+        tft.setCursor(40, 0, 1);
+        tft.println("WELL DONE!");
+        tft.setCursor(25, 10, 1);
+        tft.println("Your Score Is:");
+        tft.setCursor(55, 20, 1);
+        tft.println(points);
+        sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song_choice, instrument, points);
+        sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
+        sprintf(request + strlen(request), "Host: %s\r\n", host);
+        strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+        sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+        strcat(request, body);
+        Serial.println("This is the request");
+        Serial.println(request);
+        do_http_request(host, request, leader_board_response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+        delay(5000);
+        done = 1;
+      }
+      
+      
     }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);

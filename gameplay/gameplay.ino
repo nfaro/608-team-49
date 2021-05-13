@@ -1,4 +1,4 @@
-
+#include <WiFi.h> //Connect to WiFi Network
 #include <SPI.h>
 #include <TFT_eSPI.h>
 
@@ -9,21 +9,28 @@ class Note {       // The class
     int x_coordinate;        // Attribute (int variable)
     int y_coordinate;  // Attribute (string variable)
 };
-
+const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
+const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
+char host[] = "608dev-2.net";
+char leader_board_response[OUT_BUFFER_SIZE];
 char input_file[] = "ESP_song_files/less_i_know_the_better";
 char response[] = "897\n1282\n1666\n1794\n2051\n2564\n3076\n3589\n4102\n4615\n5128\n5384\n5641\n6153\n6666\n7179\n7692\n8205\n8717\n9230\n9487\n9743\n10000\n10256\n10769\n11282\n11794\n12307\n12820\n13333\n13589\n13846\n14358\n14871\n15384\n15897\n16410\n16923\n17435\n17692\n17948\n18205\n18461\n18974\n19487\n20000\n20512\n21025\n21538\n21794\n22051\n22564\n23076\n23589\n24102\n24615\n25128\n25641\n25897\n26153\n26410\n26666\n29743\n30769\n33846\n34871\n37948\n38974\n42051\n43076\n46153\n47179\n50256\n51282\n54359\n55384\n58461\n59487\n60000\n60512\n61025\n61538\n62051\n62564\n62820\n63076\n63589\n64102\n64615\n65128\n#4\n3\n3\n2\n1\n1\n3\n2\n1\n4\n4\n3\n3\n2\n2\n4\n3\n2\n4\n4\n3\n2\n2\n1\n1\n3\n2\n1\n4\n4\n3\n3\n2\n2\n4\n3\n2\n4\n4\n3\n2\n2\n1\n1\n3\n2\n1\n4\n4\n3\n3\n2\n2\n4\n3\n2\n4\n4\n3\n2\n2\n13\n23\n24\n23\n13\n23\n24\n23\n13\n23\n24\n23\n13\n23\n24\n23\n1\n1\n3\n2\n1\n4\n4\n3\n3\n2\n2\n4\n3\n";
 
 int times[2000];
 int notes[2000];
 Note squares[100];
+char username[] = "Andrei";
+char instrument[] = "Guitar"; 
+char song[] = "Livin on a Prayer";
+
 
 int global_index = 1;
 int start;
 int score_index = 1;
+int done = 0;
+char network[] = "MIT Uncensored";  //SSID for 6.08 Lab
+char password[] = "E?3QjXep>&gy"; //Password for 6.08 Lab
 
-
-const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
-const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 
 
 //we'll use a different pin for each PWM so we can run them side-by-side
@@ -95,6 +102,26 @@ PWM_608 backlight(PIN1, 120, 1); //create instance of PWM to control backlight o
 
 void setup() {
   Serial.begin(115200); // Set up serial port
+  WiFi.begin(network, password); //attempt to connect to wifi
+  uint8_t count = 0; //count used for Wifi check times
+  Serial.print("Attempting to connect to ");
+  Serial.println(network);
+  while (WiFi.status() != WL_CONNECTED && count < 12) {
+    delay(500);
+    Serial.print(".");
+    count++;
+  }
+  delay(2000);
+  if (WiFi.isConnected()) { //if we connected then print our IP, Mac, and SSID we're on
+    Serial.println("CONNECTED!");
+    Serial.printf("%d:%d:%d:%d (%s) (%s)\n", WiFi.localIP()[3], WiFi.localIP()[2],
+                  WiFi.localIP()[1], WiFi.localIP()[0],
+                  WiFi.macAddress().c_str() , WiFi.SSID().c_str());    delay(500);
+  } else { //if we failed to connect just Try again.
+    Serial.println("Failed to Connect :/  Going to restart");
+    Serial.println(WiFi.status());
+    ESP.restart(); // restart the ESP (proper way)
+  }
 
   //For Lab05a second part, you will uncomment the next two lines
   ledcSetup(PWM_CHANNEL, 60, 12);//create pwm channel, @50 Hz, with 12 bits of precision
@@ -120,14 +147,11 @@ void setup() {
   backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
   parse_song_file(response);
   for (int i = 0; i < 2000; i++){
-    times[i] += 4000;
-    
+    times[i] += 7000;
   }
   global_index = 1;
   start = 0;
-
   tft.setCursor(0, 0, 2); //set cursor, font size 1
-  
 }
 bool detect_note(){
   if(millis() + 70 >= times[score_index] && millis() - 150 <= times[score_index]){
@@ -191,8 +215,33 @@ void draw_notes(){
 
 
 void loop() {
-  if(times[score_index] > 34000 && score_index > 10){
+  if(times[score_index] > 34000 && score_index > 10 && done == 0){
+    char request[500];
+    char body[200];
     tft.fillScreen(TFT_BLACK);
+    tft.setCursor(40, 0, 1);
+    tft.println("WELL DONE!");
+    tft.setCursor(25, 10, 1);
+    tft.println("Your Score Is:");
+    tft.setCursor(55, 20, 1);
+    tft.println(points);
+    sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song, instrument, points);
+    sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
+    sprintf(request + strlen(request), "Host: %s\r\n", host);
+    strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+    sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+    strcat(request, body);
+    Serial.println("This is the request");
+    Serial.println(request);
+    do_http_request(host, request, leader_board_response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+    delay(5000);
+    tft.fillScreen(TFT_BLACK);
+    tft.setCursor(0, 0, 1);
+    tft.println(leader_board_response);
+    done = 1;
+  }
+  else if (done ==1){
+    Serial.print("done");
   }
   else{
     Serial.println("score_index");
@@ -365,4 +414,42 @@ void parse_song_file(char* song_file){
     }
   }
   
+}
+uint8_t char_append(char* buff, char c, uint16_t buff_size) {
+  int len = strlen(buff);
+  if (len > buff_size) return false;
+  buff[len] = c;
+  buff[len + 1] = '\0';
+  return true;
+}
+
+void do_http_request(char* host, char* request, char* response, uint16_t response_size, uint16_t response_timeout, uint8_t serial) {
+  WiFiClient client; //instantiate a client object
+  if (client.connect(host, 80)) { //try to connect to host on port 80
+    if (serial) Serial.print(request);//Can do one-line if statements in C without curly braces
+    client.print(request);
+    memset(response, 0, response_size); //Null out (0 is the value of the null terminator '\0') entire buffer
+    uint32_t count = millis();
+    while (client.connected()) { //while we remain connected read out data coming back
+      client.readBytesUntil('\n', response, response_size);
+      if (serial) Serial.println(response);
+      if (strcmp(response, "\r") == 0) { //found a blank line!
+        break;
+      }
+      memset(response, 0, response_size);
+      if (millis() - count > response_timeout) break;
+    }
+    memset(response, 0, response_size);
+    count = millis();
+    while (client.available()) { //read out remaining text (body of response)
+      char_append(response, client.read(), OUT_BUFFER_SIZE);
+    }
+    if (serial) Serial.println(response);
+    client.stop();
+    if (serial) Serial.println("-----------");
+  } else {
+    if (serial) Serial.println("connection failed :/");
+    if (serial) Serial.println("wait 0.5 sec...");
+    client.stop();
+  }
 }
