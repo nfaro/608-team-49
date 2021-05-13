@@ -26,9 +26,9 @@ char instrument[] = "Guitar";
 char song[] = "Livin on a Prayer";
 
 
-int global_index = 1;
-int start;
-int score_index = 1;
+int global_index = 0;
+int start = 0;
+int score_index = 0;
 int done = 0;
 char network[] = "MIT Uncensored";  //SSID for 6.08 Lab
 char password[] = "E?3QjXep>&gy"; //Password for 6.08 Lab
@@ -159,9 +159,9 @@ void setup() {
   backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
   parse_song_file(response);
   for (int i = 0; i < 2000; i++){
-    times[i] += 15000;
+    times[i] += 9000;
   }
-  global_index = 1;
+  global_index = 0;
   start = 0;
   tft.setCursor(0, 0, 2); //set cursor, font size 1
 }
@@ -179,6 +179,8 @@ bool detect_note(){
 }
 
 void draw_notes(){
+  Serial.println("squares");
+  Serial.println(squares[0].x_coordinate);
   if (millis() + 3670 >= times[global_index]){
     int len[2];
     int length1;
@@ -200,9 +202,9 @@ void draw_notes(){
       }
     }
     
-    Serial.println("---------------------------------------------------");
-    Serial.println("ARRAYNOTE");
-    Serial.println(notes[global_index]);
+//    Serial.println("---------------------------------------------------");
+//    Serial.println("ARRAYNOTE");
+//    Serial.println(notes[global_index]);
     for (int j = 0; j < length1;j++){
       int temp_note = len[j];
       
@@ -211,28 +213,32 @@ void draw_notes(){
         Note new_note;
         new_note.x_coordinate = 0; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        squares[start] = new_note;
       }
       else if(temp_note == 2){
         Note new_note;
         new_note.x_coordinate = 31; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        squares[start] = new_note;
       }
       else if(temp_note == 3){
         Note new_note;
         new_note.x_coordinate = 62; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        squares[start] = new_note;
       }
       else if(temp_note == 4){
         Note new_note;
         new_note.x_coordinate = 93; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        squares[start] = new_note;
       }
-      global_index ++;
-    }  
+      start++;
+      
+    }
+    global_index++;
+    
+      
   }
 
     // Create an object of MyClass
@@ -246,15 +252,10 @@ void draw_notes(){
   for (int i = 0; i < 100; i++){
       tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 30, 15, TFT_GREEN);
       squares[i].y_coordinate += 2;
-
   }
-  
 }
-
-
-
 void loop() {
-  if(times[score_index] > 45000 && score_index > 10 && done == 0){
+  if(times[score_index] > 50000 && score_index > 10 && done == 0){
     char request[500];
     char body[200];
     tft.fillScreen(TFT_BLACK);
@@ -280,15 +281,15 @@ void loop() {
     done = 1;
   }
   else if (done ==1){
-    Serial.print("done");
+    
   }
   else{
-    Serial.println("score_index");
-    Serial.println(score_index);
-    Serial.println("times");
-    Serial.println(times[score_index]);
-    Serial.println("points");
-    Serial.println(points);
+//    Serial.println("score_index");
+//    Serial.println(score_index);
+//    Serial.println("times");
+//    Serial.println(times[score_index]);
+//    Serial.println("points");
+//    Serial.println(points);
     draw_notes();
     if(detect_note()){
       int len[2];
