@@ -198,7 +198,6 @@ void draw_notes(){
         len[1] = notes[global_index]%10;
         length1 = 2;
       }
-      
     }
     
     Serial.println("---------------------------------------------------");
@@ -284,56 +283,80 @@ void loop() {
     Serial.print("done");
   }
   else{
-//    Serial.println("score_index");
-//    Serial.println(score_index);
-//    Serial.println("times");
-//    Serial.println(times[score_index]);
-//    Serial.println("points");
-//    Serial.println(points);
+    Serial.println("score_index");
+    Serial.println(score_index);
+    Serial.println("times");
+    Serial.println(times[score_index]);
+    Serial.println("points");
+    Serial.println(points);
     draw_notes();
     if(detect_note()){
-      if (notes[score_index]%10 == 1){
-        if (!digitalRead(BUTTON3)){
-          ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
-          ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
-          score_index += 1;
-          points += 1;
+      int len[2];
+      int length1;
+      if (notes[global_index]/10 == 0){
+        len[0] = notes[global_index];
+        length1 = 1;
+      }
+      else{
+        int temp1 = notes[global_index]/10;
+        int temp2 = notes[global_index]%10;
+        if (temp1 == temp2){
+          len[0]= notes[global_index];
+          length1 = 1;
         }
         else{
-          ledcWrite(PWM_CHANNEL5, 0);
-          ledcWrite(PWM_CHANNEL4, 0);
+          len[0] = notes[global_index]/10;
+          len[1] = notes[global_index]%10;
+          length1 = 2;
         }
       }
-      if (notes[score_index]%10 == 2){
-        if (!digitalRead(BUTTON2)){
-          ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
-          score_index += 1;
-          points += 1;
+      for (int j = 0; j < length1;j++){
+        int temp_note = len[j];
+        
+        if (temp_note == 1){
+          if (!digitalRead(BUTTON3)){
+            ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
+            ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
+            score_index += 1;
+            points += 1;
+          }
+          else{
+            ledcWrite(PWM_CHANNEL5, 0);
+            ledcWrite(PWM_CHANNEL4, 0);
+          }
         }
-        else{
-          ledcWrite(PWM_CHANNEL3, 0);
+        if (temp_note == 2){
+          if (!digitalRead(BUTTON2)){
+            ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
+            score_index += 1;
+            points += 1;
+          }
+          else{
+            ledcWrite(PWM_CHANNEL3, 0);
+          }
+        }
+        if (temp_note == 3){
+          if(!digitalRead(BUTTON)){
+            ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
+            score_index += 1;
+            points += 1;
+          }
+          else{
+            ledcWrite(PWM_CHANNEL, 0);
+          }
+        }
+        if (temp_note == 4){
+          if(!digitalRead(BUTTON4)){
+            ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
+            score_index += 1;
+            points += 1;
+          }
+          else{
+            ledcWrite(PWM_CHANNEL2, 0);
+          }
         }
       }
-      if (notes[score_index]%10 == 3){
-        if(!digitalRead(BUTTON)){
-          ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
-          score_index += 1;
-          points += 1;
-        }
-        else{
-          ledcWrite(PWM_CHANNEL, 0);
-        }
-      }
-      if (notes[score_index]%10 == 4){
-        if(!digitalRead(BUTTON4)){
-          ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
-          score_index += 1;
-          points += 1;
-        }
-        else{
-          ledcWrite(PWM_CHANNEL2, 0);
-        }
-      }
+      
       
     }
     if (!digitalRead(BUTTON)) {
