@@ -399,5 +399,9 @@ void parse_song_file(char* song_file){
     }
   }
 
+  for (int i = 0; i < 100; i++){
+    Serial.println(times[i]);
+  }
+
   
 }
