@@ -254,7 +254,7 @@ void draw_notes(){
 
 
 void loop() {
-  if(times[score_index] > 45000 && score_index > 10 && done == 0){
+  if(times[score_index] > 60000 && score_index > 10 && done == 0){
     char request[500];
     char body[200];
     tft.fillScreen(TFT_BLACK);
