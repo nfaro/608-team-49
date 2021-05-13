@@ -2,8 +2,8 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <mpu6050_esp32.h>
-#include <math.h>
-#include <string.h>
+#include<math.h>
+#include<string.h>
 
 TFT_eSPI tft = TFT_eSPI();
 const int SCREEN_HEIGHT = 160;
@@ -15,9 +15,8 @@ const int LOOP_PERIOD = 40;
 
 MPU6050 imu; //imu object called, appropriately, imu
 
-char network[] = "MIT";  //SSID for 6.08 Lab
-char password[] = ""; //Password for 6.08 Lab
-
+char network[] = "MIT Secure";  //SSID for 6.08 Lab
+char password[] = "12345678"; //Password for 6.08 Lab
 
 //Some constants and some resources:
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
@@ -25,28 +24,29 @@ const uint16_t OUT_BUFFER_SIZE = 1000; //size of buffer to hold HTTP response
 char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
-
 char username[200];
 char roomname[200];
 char action[10];
+int currently_in_game = 0;
 
 uint32_t primary_timer;
 
 int old_val;
-bool ready = false;
 
 enum MENU {UserNameInput, Player_Choice, Multiplayer_Menu, HostRoomNameInput, 
   Host_Waiting_Room, JoinRoomNameInput, Join_Waiting_Room, 
-  Song_Menu, Instrument_Menu, Waiting_Room, PlaySong} menu = UserNameInput;
+  Song_Menu, Instrument_Menu, Difficulty_Menu, PlaySong} menu = Player_Choice;
 
-const char *song_choices[3] = { "Song 1", "Song 2" };
-const char *instrument_choices[3] = { "Guitar", "Drums" };
+const char *song_choices[6] = { "\"Livin on a Prayer\": Bon Jovi", "\"September\": Earth, Wind, and Fire", "\"Barracuda\": Heart", "\"Slow Ride\": Foghat", "\"Dammit\": Blink-182"};
+const char *instrument_choices[3] = { "Guitar", "Bass", "Drums" };
 const char *multiplayer_choices[4] = { "Host Room", "Join Room", "View Rooms" };
 const char *host_waiting_choices[3] = { "Start", "Cancel" };
 const char *player_choices[3] = { "Singleplayer", "Multiplayer" };
+const char *difficulty_choices[5] = {"Easy", "Medium", "Hard","Expert"};
 
 char song_choice[200];
 char instrument[200];
+char difficulty[200];
 
 //used to get x,y values from IMU accelerometer!
 void get_angle(float* x, float* y) {
@@ -54,6 +54,8 @@ void get_angle(float* x, float* y) {
   *x = imu.accelCount[0] * imu.aRes;
   *y = imu.accelCount[1] * imu.aRes;
 }
+
+//-------------------------------------------------------------General Classes -----------------------------------------------------------
 
 class Button {
   public:
@@ -130,7 +132,7 @@ class Button {
 };
 
 class NameGetter {
-    char alphabet[50] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+    char alphabet[50] = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
     char msg[400] = {0}; //contains previous query response
     char query_string[50] = {0};
     int char_index;
@@ -138,10 +140,10 @@ class NameGetter {
     uint32_t scrolling_timer;
     const int scrolling_threshold = 150;
     const float angle_threshold = 0.3;
-    MENU menu_choice;
     char* string_to_save_to;
     bool do_http_request_at_end;
   public:
+    MENU menu_choice;
 
     NameGetter(char* message, MENU menu_to_go_to, char* save_string, bool req) {
       state = 0;
@@ -162,12 +164,12 @@ class NameGetter {
     void update(int left_button, int right_button, int button, char* output) {
       if (state == 0) {
         strcpy(output, msg);
-        if (button == 2) {
+//        if (button == 1) {
           char_index = 0;
           strcpy(query_string, "");
           scrolling_timer = millis();
           state = 1;
-        }
+//        }
       }
       else if (state == 1) {
         if (button == 1) {
@@ -229,7 +231,7 @@ class NameGetter {
           char body[200];
           sprintf(body, "user=%s&roomname=%s&action=%s&password=PASSWORD", username, roomname, action);
           Serial.println("finishes thing");
-          sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+          sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
           sprintf(request + strlen(request), "Host: %s\r\n", host);
           strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
           sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
@@ -243,11 +245,15 @@ class NameGetter {
     }
 };
 
+//--------------------------------------Initialization of Generics----------------------------------
+
 NameGetter ng("Input Username after long press.", Player_Choice, username, false);
 NameGetter room_ng("Input Room name after long press.", Host_Waiting_Room, roomname, true);
 Button button(SELECT_BUTTON_PIN);
 Button change_button(CHANGE_BUTTON_PIN);
 Button reverse_button(REVERSE_BUTTON_PIN);
+
+//---------------------------------------------------Different Menu Types -----------------------------------------------------------------
 
 class Menu {
   public:
@@ -274,10 +280,11 @@ class PlayerChoiceMenu: public Menu {
       }
       if (select_button == 1) {
         if (choice == 0) {
-          menu = Song_Menu;
+          ng.menu_choice = Song_Menu;
         } else if (choice == 1) {
-          menu = Multiplayer_Menu;
+          ng.menu_choice = Multiplayer_Menu;
         }
+        menu = UserNameInput;
       }
       return choice;
     }
@@ -287,7 +294,7 @@ class SongMenu: public Menu {
   public:
     int update(int change_button, int select_button) {
       if (change_button == 1) {
-        choice = (choice + 1) % 2;
+        choice = (choice + 1) % 5;
 
       }
       if (select_button == 1) {
@@ -298,17 +305,32 @@ class SongMenu: public Menu {
     }
 };
 
+class DifficultyMenu: public Menu {
+  public:
+    int update(int change_button, int select_button) {
+      if (change_button == 1) {
+        choice = (choice + 1) % 4;
+        Serial.println(choice);
+      }
+      if (select_button == 1) {
+        strcpy(difficulty, difficulty_choices[choice]);
+        menu = PlaySong;
+      }
+
+      return choice;
+    }
+};
+
 class InstrumentMenu: public Menu {
   public:
     int update(int change_button, int select_button) {
       if (change_button == 1) {
-        choice = (choice + 1) % 2;
+        choice = (choice + 1) % 3;
         Serial.println(choice);
       }
       if (select_button == 1) {
         strcpy(instrument, instrument_choices[choice]);
-        ready = true;
-        menu = Waiting_Room;
+        menu = Difficulty_Menu;
       }
 
       return choice;
@@ -352,7 +374,7 @@ class HostWaitingRoomMenu: public Menu {
           char body[200];
           sprintf(body, "user=%s&roomname=%s&action=ready&password=PASSWORD", username, roomname);
           Serial.println("finishes thing");
-          sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+          sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
           sprintf(request + strlen(request), "Host: %s\r\n", host);
           strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
           sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
@@ -372,13 +394,14 @@ class HostWaitingRoomMenu: public Menu {
     }
 };
 
-class 
+//---------------------------------------------------Initialization -----------------------------------------------------------------
 
 InstrumentMenu instrument_menu;
 SongMenu song_menu;
 MultiplayerMenu multiplayer_menu;
 HostWaitingRoomMenu hostWaitingRoomMenu;
 PlayerChoiceMenu player_choice_menu;
+DifficultyMenu difficulty_menu;
 
 void setup() {
   Serial.begin(115200); //for debugging if needed.
@@ -424,9 +447,11 @@ void setup() {
 }
 
 
-MENU last_menu = UserNameInput;
+MENU last_menu = Player_Choice;
 int last_choice = 0;
 bool change = true;
+
+//---------------------------------------------------------------------Loop--------------------------------------------------------------
 
 void loop() {
   int change_button_val = change_button.update();
@@ -472,7 +497,7 @@ void loop() {
       Serial.println("2 second timer");
       primary_timer = millis();
       char request[500];
-      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s HTTP/1.1\r\n", username);
+      sprintf(request, "GET /sandbox/sc/nfaro/server.py?user=%s?action=lobby HTTP/1.1\r\n", username);
       sprintf(request + strlen(request), "Host: %s\r\n\r\n", host);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
@@ -518,7 +543,7 @@ void loop() {
       Serial.println("2 second timer");
       primary_timer = millis();
       char request[500];
-      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s HTTP/1.1\r\n", username);
+      sprintf(request, "GET /sandbox/sc/nfaro/server.py?user=%s HTTP/1.1\r\n", username);
       sprintf(request + strlen(request), "Host: %s\r\n\r\n", host);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
@@ -527,47 +552,59 @@ void loop() {
       }
       change = true;
     }
-    if (change) {
+     if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
       tft.println(response);
       change = false;
     }
   } else if (menu == PlaySong) {
-    if (change) {
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println("Playing song rn");
-      tft.println(username);
-      tft.println(instrument);
-      choice = last_choice;
-
+    if (currently_in_game == 0) {
+      currently_in_game = 1;
       char request[500];
       char body[200];
-      sprintf(body, "user=%s&roomname=%s&action=play&password=PASSWORD", username, roomname);
-      Serial.println("finishes thing");
-      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+      sprintf(body, "user=%s&song=%s&instrument=%s&difficulty=%s&action=startgame", username, song_choice, instrument, difficulty);
+      sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
       sprintf(request + strlen(request), "Host: %s\r\n", host);
       strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
       sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
       strcat(request, body);
-      Serial.println("Finishes copying");
+      Serial.println(response);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-
-      delay(atoi(response));
-      change = false;
+      Serial.println(response);
+    }
+    if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 1);
-      tft.println("Playing");
+      tft.println("Information about current song being played:");
+      tft.println("");
+      tft.println(username);
+      tft.println("");
+      tft.println(song_choice);
+      tft.println("");
+      tft.println(instrument);
+      tft.println("");
+      tft.println(difficulty);
+      choice = last_choice;
+      change = false;
     }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
     if (change) {
+      
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      for (int i = 0; i < 2; i++) {
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(10, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Pick an Instrument:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int y_index[6] = {60, 75, 90};
+      int x_index[6] = {45, 52, 50};
+      for (int i = 0; i < 3; i++) {
+        tft.setCursor(x_index[i], y_index[i], 1);
         if (i == choice) {
-          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(instrument_choices[i]);
           tft.setTextColor(TFT_GREEN, TFT_BLACK);
         } else {
@@ -576,14 +613,46 @@ void loop() {
       }
       change = false;
     }
+  } else if (menu == Difficulty_Menu) {
+    choice = difficulty_menu.update(change_button_val, select_button_val);
+    if (change) {
+      tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(12, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Pick a Difficulty:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int y_index[6] = {60, 75, 90, 105};
+      int x_index[6] = {52, 45, 52, 46};
+      for (int i = 0; i < 4; i++) {
+        tft.setCursor(x_index[i], y_index[i], 1);
+        if (i == choice) {
+          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.println(difficulty_choices[i]);
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        } else {
+          tft.println(difficulty_choices[i]);
+        }
+      }
+      change = false;
+    }
   } else if (menu == Song_Menu) {
     choice = song_menu.update(change_button_val, select_button_val);
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      for (int i = 0; i < 2; i++) {
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(30, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Pick a Song:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int y_index[6] = {60, 80, 100, 115, 130};
+      int x_index[6] = {0, 0, 0, 0, 0};
+      for (int i = 0; i < 5; i++) {
+        tft.setCursor(x_index[i], y_index[i], 1);
         if (i == choice) {
-          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(song_choices[i]);
           tft.setTextColor(TFT_GREEN, TFT_BLACK);
         } else {
@@ -598,8 +667,25 @@ void loop() {
     ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println(response);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.setCursor(8, 30, 1);
+      tft.setTextSize(1.75);
+      tft.println("Enter your username");
+      tft.setCursor(50, 42, 1);
+      tft.println("below:");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int newIndex = 60 - (strlen(response)) * 2.5;
+      tft.setCursor(newIndex, 70, 1);
+      char temp[100] = "";
+      if (strlen(response) != 1) {
+        strncpy(temp, response, strlen(response) - 1);
+        temp[strlen(response)-1] = '\0';
+      }
+      tft.print(temp);
+      tft.setTextColor(TFT_BLACK, TFT_GREEN);
+      tft.print(response[strlen(response)-1]);
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
       change = false;
     }
     memset(old_response, 0, sizeof(old_response));
@@ -611,10 +697,24 @@ void loop() {
     choice = player_choice_menu.update(change_button_val, select_button_val);
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      for (int i = 0; i < 3; i++) {
+      tft.setCursor(22, 30, 1);
+      tft.setTextSize(2);
+      tft.setTextColor(TFT_RED, TFT_BLACK);
+      tft.println("ARDUINO");
+      tft.setTextSize(0.5);
+      tft.println("");
+      tft.setTextSize(2);
+      tft.setCursor(40, 50, 1);
+      tft.println("HERO");
+      tft.println("");
+      tft.setTextSize(0.75);
+      int y_index[3] = {90, 105};
+      int x_index[3] = {27, 30};
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      for (int i = 0; i < 2; i++) {
+        tft.setCursor(x_index[i], y_index[i], 1);
         if (i == choice) {
-          tft.setTextColor(TFT_WHITE, TFT_GREEN);
+          tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(player_choices[i]);
           tft.setTextColor(TFT_GREEN, TFT_BLACK);
         } else {
@@ -622,49 +722,6 @@ void loop() {
         }
       }
       change = false;
-    }
-  } else if (menu == Waiting_Room) {
-    if(ready){
-      ready = false;
-      char request[500];
-      char body[200];
-      sprintf(body, "user=%s&roomname=%s&action=play&password=PASSWORD", username, roomname);
-      Serial.println("finishes thing");
-      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
-      sprintf(request + strlen(request), "Host: %s\r\n", host);
-      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
-      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
-      strcat(request, body);
-      Serial.println("Finishes copying");
-      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-    }
-    else if(millis() - primary_timer > 2000){
-      tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
-      tft.println("Waiting");
-      tft.println(username);
-      tft.println(instrument);
-      choice = last_choice;
-      primary_timer = millis();
-
-      char request[500];
-      char body[200];
-      sprintf(body, "user=%s&roomname=%s&action=waiting&password=PASSWORD", username, roomname);
-      Serial.println("finishes thing");
-      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
-      sprintf(request + strlen(request), "Host: %s\r\n", host);
-      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
-      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
-      strcat(request, body);
-      Serial.println("Finishes copying");
-      do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-      if(strstr(response, "Waiting") == NULL){
-        Serial.println(response);
-        Serial.println(millis());
-        delay(atoi(response));
-        Serial.println(millis());
-        menu = PlaySong;
-      }
     }
   }
 
@@ -674,6 +731,7 @@ void loop() {
 
   last_menu = menu;
   last_choice = choice;
+
 }
 
 /*----------------------------------
