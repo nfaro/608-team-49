@@ -736,11 +736,11 @@ void loop() {
           char request[500];
           char body[200];
           tft.fillScreen(TFT_BLACK);
-          tft.setCursor(40, 0, 2);
+          tft.setCursor(75, 0, 2);
           tft.println("WELL DONE!");
-          tft.setCursor(25, 10, 2);
+          tft.setCursor(65, 25, 2);
           tft.println("Your Score Is:");
-          tft.setCursor(55, 20, 1);
+          tft.setCursor(85, 40, 2);
           tft.println(points);
           sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song_choice, instrument, points);
           sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
@@ -916,14 +916,14 @@ void loop() {
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(8, 30, 2);
+      tft.setCursor(50, 30, 2);
       tft.setTextSize(1.75);
       tft.println("Enter your username");
-      tft.setCursor(50, 42, 2);
+      tft.setCursor(90, 48, 2);
       tft.println("below:");
       tft.println("");
       tft.setTextSize(0.75);
-      int newIndex = 60 - (strlen(response)) * 2.5;
+      int newIndex = 100 - (strlen(response)) * 2.5;
       tft.setCursor(newIndex, 70, 2);
       char temp[100] = "";
       if (strlen(response) != 1) {
@@ -1045,7 +1045,7 @@ bool detect_note(){
   if(millis() - start_time + 70 >= times[score_index] && millis()- start_time - 150 <= times[score_index]){
     return true;
   }
-  else if(millis() - start_time -151 > times[score_index]){
+  else if(millis() - start_time - 151 > times[score_index]){
     score_index += 1;
     return false;
   }
