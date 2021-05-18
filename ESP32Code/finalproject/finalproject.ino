@@ -15,8 +15,8 @@ const int LOOP_PERIOD = 40;
 
 MPU6050 imu; //imu object called, appropriately, imu
 
-char network[] = "MIT Secure";  //SSID for 6.08 Lab
-char password[] = "12345678"; //Password for 6.08 Lab
+char network[] = "MIT";  //SSID for 6.08 Lab
+char password[] = ""; //Password for 6.08 Lab
 
 
 //Some constants and some resources:
@@ -81,7 +81,7 @@ int ammount3 = 0;
 
 const int BUTTON = 0;
 const int BUTTON2 = 5;
-const int BUTTON3 = 15;
+const int BUTTON3 = 19;
 const int BUTTON4 = 14;
 
 const uint32_t PWM_CHANNEL = 0; //hardware pwm channel used in secon part
@@ -421,8 +421,9 @@ class ExitMenu: public Menu {
           ammount2 = 0;
           ammount3 = 0;
           menu = PlaySong; 
+          tft.fillScreen(TFT_BLACK);
         } else if (choice == 1) {
-          menu = JoinRoomNameInput;
+          menu = Song_Menu;
         } else if (choice == 2) {
           memset(difficulty, 0, sizeof(difficulty));
           memset(song_choice, 0, sizeof(song_choice));
@@ -580,7 +581,7 @@ void setup() {
   ledcAttachPin(PIN5, PWM_CHANNEL5);
 
   tft.fillScreen(TFT_BLACK);
-  tft.setCursor(0, 0, 1);
+  tft.setCursor(0, 0, 2);
 
   global_index = 0;
   start_time = millis();
@@ -614,7 +615,7 @@ void loop() {
     choice = multiplayer_menu.update(change_button_val, select_button_val);
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       for (int i = 0; i < 3; i++) {
         if (i == choice) {
           tft.setTextColor(TFT_WHITE, TFT_GREEN);
@@ -629,15 +630,14 @@ void loop() {
   } else if (menu == Exit_Menu) {
 
     choice = exit_menu.update(change_button_val, select_button_val);
-    Serial.println(choice);
     if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(12, 30, 1);
+      tft.setCursor(30, 30, 2);
       int y_index[6] = {50, 65, 80};
-      int x_index[6] = {47, 20, 10};
+      int x_index[6] = {60, 45, 40};
       for (int i = 0; i < 3; i++) {
-        tft.setCursor(x_index[i], y_index[i], 1);
+        tft.setCursor(x_index[i], y_index[i], 2);
         if (i == choice) {
           tft.setTextColor(TFT_WHITE, TFT_GREEN);
           tft.println(exit_choices[i]);
@@ -648,16 +648,14 @@ void loop() {
       }
       change = false;
     }
-    
-
-  }else if (menu == HostRoomNameInput) {
+  } else if (menu == HostRoomNameInput) {
     int right_value = !digitalRead(CHANGE_BUTTON_PIN);
     int left_value = !digitalRead(REVERSE_BUTTON_PIN);
     strcpy(action, "create");
     room_ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       tft.println(response);
       change = false;
     }
@@ -682,7 +680,7 @@ void loop() {
     choice = hostWaitingRoomMenu.update(change_button_val, select_button_val);
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       for (int i = 0; i < 2; i++) {
         if (i == choice) {
           tft.setTextColor(TFT_WHITE, TFT_GREEN);
@@ -704,7 +702,7 @@ void loop() {
     room_ng.update(left_value, right_value, select_button_val, response); //input: angle and button, output String to display on this timestep
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       tft.println(response);
       change = false;
     }
@@ -729,7 +727,7 @@ void loop() {
     }
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       tft.println(response);
       change = false;
     }
@@ -738,11 +736,11 @@ void loop() {
           char request[500];
           char body[200];
           tft.fillScreen(TFT_BLACK);
-          tft.setCursor(40, 0, 1);
+          tft.setCursor(75, 0, 2);
           tft.println("WELL DONE!");
-          tft.setCursor(25, 10, 1);
+          tft.setCursor(65, 25, 2);
           tft.println("Your Score Is:");
-          tft.setCursor(55, 20, 1);
+          tft.setCursor(85, 40, 2);
           tft.println(points);
           sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song_choice, instrument, points);
           sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
@@ -755,13 +753,13 @@ void loop() {
           do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
           delay(5000);
           tft.fillScreen(TFT_BLACK);
-          tft.setCursor(0, 0, 1);
+          tft.setCursor(0, 0, 2);
           tft.println(response);
 
           delay(5000);
 
           tft.fillScreen(TFT_BLACK);
-          tft.setCursor(0, 0, 1);
+          tft.setCursor(0, 0, 2);
           menu = Exit_Menu;
 
           
@@ -837,8 +835,8 @@ void loop() {
       else{
         ledcWrite(PWM_CHANNEL5, 0);
         ledcWrite(PWM_CHANNEL4, 0);
-    
       }
+      Serial.println(digitalRead(BUTTON3));
       delay(15);
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
@@ -846,15 +844,14 @@ void loop() {
       
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(10, 30, 1);
+      tft.setCursor(60, 30, 2);
       tft.setTextSize(1.75);
       tft.println("Pick an Instrument:");
       tft.println("");
       tft.setTextSize(0.75);
       int y_index[6] = {60, 75, 90};
-      int x_index[6] = {45, 52, 50};
       for (int i = 0; i < 3; i++) {
-        tft.setCursor(x_index[i], y_index[i], 1);
+        tft.setCursor(90, y_index[i], 2);
         if (i == choice) {
           tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(instrument_choices[i]);
@@ -870,15 +867,14 @@ void loop() {
     if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(12, 30, 1);
+      tft.setCursor(60, 30, 2);
       tft.setTextSize(1.75);
       tft.println("Pick a Difficulty:");
       tft.println("");
       tft.setTextSize(0.75);
       int y_index[6] = {60, 75, 90, 105};
-      int x_index[6] = {52, 45, 52, 46};
       for (int i = 0; i < 4; i++) {
-        tft.setCursor(x_index[i], y_index[i], 1);
+        tft.setCursor(70, y_index[i], 2);
         if (i == choice) {
           tft.setTextColor(TFT_WHITE, TFT_GREEN);
           tft.println(difficulty_choices[i]);
@@ -894,7 +890,7 @@ void loop() {
     if (change) {
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(30, 30, 1);
+      tft.setCursor(70, 30, 2);
       tft.setTextSize(1.75);
       tft.println("Pick a Song:");
       tft.println("");
@@ -902,7 +898,7 @@ void loop() {
       int y_index[6] = {60, 80, 100, 115, 130};
       int x_index[6] = {0, 0, 0, 0, 0};
       for (int i = 0; i < 5; i++) {
-        tft.setCursor(x_index[i], y_index[i], 1);
+        tft.setCursor(x_index[i], y_index[i], 2);
         if (i == choice) {
           tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(song_choices[i]);
@@ -920,15 +916,15 @@ void loop() {
     if (change || strcmp(response, old_response) != 0) {//only draw if changed!
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.setCursor(8, 30, 1);
+      tft.setCursor(50, 30, 2);
       tft.setTextSize(1.75);
       tft.println("Enter your username");
-      tft.setCursor(50, 42, 1);
+      tft.setCursor(90, 48, 2);
       tft.println("below:");
       tft.println("");
       tft.setTextSize(0.75);
-      int newIndex = 60 - (strlen(response)) * 2.5;
-      tft.setCursor(newIndex, 70, 1);
+      int newIndex = 100 - (strlen(response)) * 2.5;
+      tft.setCursor(newIndex, 70, 2);
       char temp[100] = "";
       if (strlen(response) != 1) {
         strncpy(temp, response, strlen(response) - 1);
@@ -949,22 +945,19 @@ void loop() {
     choice = player_choice_menu.update(change_button_val, select_button_val);
     if (change) {
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(22, 30, 1);
+      tft.setCursor(60, 40, 2);
       tft.setTextSize(2);
       tft.setTextColor(TFT_RED, TFT_BLACK);
       tft.println("ARDUINO");
-      tft.setTextSize(0.5);
-      tft.println("");
       tft.setTextSize(2);
-      tft.setCursor(40, 50, 1);
+      tft.setCursor(80, 75, 2);
       tft.println("HERO");
       tft.println("");
       tft.setTextSize(0.75);
-      int y_index[3] = {90, 105};
-      int x_index[3] = {27, 30};
+      int y_index[3] = {120, 140};
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
       for (int i = 0; i < 2; i++) {
-        tft.setCursor(x_index[i], y_index[i], 1);
+        tft.setCursor(70, y_index[i], 2);
         if (i == choice) {
           tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(player_choices[i]);
@@ -1004,7 +997,7 @@ void loop() {
     }
     else if(millis() - primary_timer > 2000){
       tft.fillScreen(TFT_BLACK);
-      tft.setCursor(0, 0, 1);
+      tft.setCursor(0, 0, 2);
       tft.println("Waiting");
       tft.println(username);
       tft.println(instrument);
@@ -1037,6 +1030,7 @@ void loop() {
         start_time = millis();
         start = 0;
       }
+      tft.fillScreen(TFT_BLACK);
     }
   }
 
@@ -1051,7 +1045,7 @@ bool detect_note(){
   if(millis() - start_time + 70 >= times[score_index] && millis()- start_time - 150 <= times[score_index]){
     return true;
   }
-  else if(millis() - start_time -151 > times[score_index]){
+  else if(millis() - start_time - 151 > times[score_index]){
     score_index += 1;
     return false;
   }
@@ -1071,19 +1065,19 @@ void draw_notes(){
       }
       else if(notes[global_index]%10 == 2){
         Note new_note;
-        new_note.x_coordinate = 31; 
+        new_note.x_coordinate = 60; 
         new_note.y_coordinate= 0;
         squares[global_index] = new_note;
       }
       else if(notes[global_index]%10 == 3){
         Note new_note;
-        new_note.x_coordinate = 62; 
+        new_note.x_coordinate = 120; 
         new_note.y_coordinate= 0;
         squares[global_index] = new_note;
       }
       else if(notes[global_index]%10 == 4){
         Note new_note;
-        new_note.x_coordinate = 93; 
+        new_note.x_coordinate = 180; 
         new_note.y_coordinate= 0;
         squares[global_index] = new_note;
       }
@@ -1096,11 +1090,11 @@ void draw_notes(){
   
 //  Serial.println("this is the start");
 //  Serial.println(start);
-  tft.fillScreen(TFT_BLACK);
-  tft.fillRect(0, 140, 160, 1, TFT_GREEN);
+  tft.fillRect(0, 280, 240, 1, TFT_GREEN);
   for (int i = 0; i < 100; i++){
-      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 30, 15, TFT_GREEN);
-      squares[i].y_coordinate += 2;
+      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate - 4, 59, 25, TFT_BLACK);
+      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_GREEN);
+      squares[i].y_coordinate += 4;
 
   }
   
@@ -1214,9 +1208,7 @@ void parse_song_file(char* song_file){
       n_index++;
       
     }
-  }
-
-  
+  }  
 }
 
 /*----------------------------------
