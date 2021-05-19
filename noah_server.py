@@ -19,6 +19,8 @@ import os
 # 		dict1[filename] = song
 # print(repr(dict1))
 
+print(repr(list(names_to_reps.keys())))
+
 
 rooms_db = '/var/jail/home/team49/room_info.db'
 leaderboard_db = '/var/jail/home/team49/leaderboard.db'

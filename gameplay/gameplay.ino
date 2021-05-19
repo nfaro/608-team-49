@@ -30,7 +30,7 @@ const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 const uint16_t OUT_BUFFER_SIZE = 10000; //size of buffer to hold HTTP response
 const int MAX_INT_ARRAY_SIZE = 800; //longest int section in library
 const int NOTE_OFFSET = 3000;
-const int SCROLL_TIME = 2200;
+const int SCROLL_TIME = 2100;
 //---------------------------------------------
 
 char host[] = "608dev-2.net";
@@ -66,8 +66,17 @@ int ending_time;
 
 char username[] = "Andrei";
 char instrument[] = "Guitar"; 
-char song[] = "Livin on a Prayer";
+
 char difficulty[] = "medium";
+
+const char *song_choices[12] = { "Every Morning", "Fluorescent Adolescent", "My Own Worst Enemy", "Photograph", "Still Into You", "The Less I Know the Better", "Under Cover of Darkness", "What You Know", "When I Come Around"};
+
+char song[] = "photograph_guitar_medium";
+int mp3_song = 4;
+//MP3 MAPPING FOR SONG S AT INDEX I IN song_choices IS I+1
+
+const char *instrument_choices[3] = { "Guitar", "Drums" };
+const char *difficulty_choices[5] = {"Easy", "Medium", "Hard","Expert"};
 
 
 char network[] = "MIT Uncensored";  //SSID for 6.08 Lab
@@ -163,7 +172,7 @@ void setup() {
   myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
   
   //----Set volume----
-  myDFPlayer.volume(30);  //Set volume value (0~30).
+  myDFPlayer.volume(20);  //Set volume value (0~30).
   myDFPlayer.volumeUp(); //Volume Up
   myDFPlayer.volumeDown(); //Volume Down
   
@@ -193,7 +202,7 @@ void setup() {
   char request[500];
   
 //  
-  sprintf(request, "GET /sandbox/sc/gagordon/final_project/song_file_handler.py?song_file_name=my_own_worst_enemy_drums_medium HTTP/1.1\r\n");
+  sprintf(request, "GET /sandbox/sc/gagordon/final_project/song_file_handler.py?song_file_name=%s HTTP/1.1\r\n", song);
   strcat(request, "Host: 608dev-2.net\r\n"); //add more to the end
   strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
   strcat(request, "\r\n"); //add blank line!
@@ -504,7 +513,7 @@ void loop() {
       else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
         tft.setCursor(80, 0, 2);
         tft.println("GO!");
-        myDFPlayer.play(2);
+        myDFPlayer.play(mp3_song);
         playing = 1;
       }
       else if(playing ==1){
