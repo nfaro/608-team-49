@@ -2,8 +2,14 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <cmath>
+#include <DFRobotDFPlayerMini.h>
+
+
+HardwareSerial mySoftwareSerial(2);
+DFRobotDFPlayerMini myDFPlayer;
 
 TFT_eSPI tft = TFT_eSPI();
+int playing = 0;
 
 //NEEDS TO BE ADDED AS THERE ARE A LOT OF NEW FIELDS
 class Note {       // The class
@@ -24,7 +30,7 @@ const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 const uint16_t OUT_BUFFER_SIZE = 10000; //size of buffer to hold HTTP response
 const int MAX_INT_ARRAY_SIZE = 800; //longest int section in library
 const int NOTE_OFFSET = 3000;
-const int SCROLL_TIME = 1700;
+const int SCROLL_TIME = 2200;
 //---------------------------------------------
 
 char host[] = "608dev-2.net";
@@ -137,7 +143,33 @@ void PWM_608::set_duty_cycle(float duty_cycle) {
 PWM_608 backlight(PIN1, 120, 1); //create instance of PWM to control backlight on pin 1, operating at 50 Hz
 
 void setup() {
-  Serial.begin(115200); // Set up serial port
+  mySoftwareSerial.begin(9600, SERIAL_8N1, 32, 33);  // speed, type, RX, TX
+  Serial.begin(115200);
+  
+  Serial.println();
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+  delay(1000);
+  while (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    
+    Serial.println(myDFPlayer.readType(),HEX);
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    //while(true);
+  }
+  Serial.println(F("DFPlayer Mini online."));
+  
+  myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
+  
+  //----Set volume----
+  myDFPlayer.volume(30);  //Set volume value (0~30).
+  myDFPlayer.volumeUp(); //Volume Up
+  myDFPlayer.volumeDown(); //Volume Down
+  
+  //----Set different EQ----
+  myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+  myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
   WiFi.begin(network, password); //attempt to connect to wifi
   uint8_t count = 0; //count used for Wifi check times
   Serial.print("Attempting to connect to ");
@@ -202,7 +234,7 @@ void setup() {
   tft.setCursor(0, 0, 2); //set cursor, font size 1
   start_time = millis();
   //---------------------------------------------
-  
+  //myDFPlayer.play(1);
 }
 bool detect_note(){
   if(millis() + 70 >= times[score_index] && millis() - 150 <= times[score_index]){
@@ -469,9 +501,14 @@ void loop() {
         tft.setCursor(80, 0, 2);
         tft.println("SET!");
       }
-      else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000)){
+      else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
         tft.setCursor(80, 0, 2);
         tft.println("GO!");
+        myDFPlayer.play(2);
+        playing = 1;
+      }
+      else if(playing ==1){
+        
       }
 
     //---------------------------------------------
