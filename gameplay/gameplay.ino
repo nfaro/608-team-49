@@ -353,7 +353,7 @@ void draw_notes(){
 
 
 void loop() {
-  if(times[score_index] > ending_time && score_index > 10 && done == 0){
+  if(millis() - start_time >= ending_time){
     char request[500];
     char body[200];
     tft.fillScreen(TFT_BLACK);
