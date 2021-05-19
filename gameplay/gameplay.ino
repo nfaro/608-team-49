@@ -21,21 +21,27 @@ class Note {       // The class
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 
 //NEEDS TO BE ADDED WITH NEW OUT BUFFER SIZE
-const uint16_t OUT_BUFFER_SIZE = 8000; //size of buffer to hold HTTP response
+const uint16_t OUT_BUFFER_SIZE = 10000; //size of buffer to hold HTTP response
+const int MAX_INT_ARRAY_SIZE = 800; //longest int section in library
+const int NOTE_OFFSET = 3000;
+const int SCROLL_TIME = 1700;
 //---------------------------------------------
 
 char host[] = "608dev-2.net";
-char leader_board_response[OUT_BUFFER_SIZE];
+char leader_board_response[2000];
 char response[OUT_BUFFER_SIZE];
-char input_file[] = "ESP_song_files/less_i_know_the_better";
 
 //char response[] = "0\n272\n545\n818\n1090\n1363\n1909\n2181\n2454\n2727\n3000\n3545\n3818\n4090\n4909\n5181\n5454\n5727\n6545\n7363\n7500\n7636\n8727\n9000\n9272\n9545\n9818\n10090\n10636\n10909\n11181\n11454\n11727\n12272\n12545\n12818\n13090\n13636\n13909\n14181\n14454\n15272\n16090\n16227\n16363\n17454\n18000\n18818\n19363\n19636\n20181\n20454\n21000\n21272\n21818\n22363\n22636\n23181\n23727\n24000\n24545\n24818\n25363\n25636\n26181\n26727\n27000\n27545\n28090\n28363\n28909\n29181\n29727\n30000\n30545\n31090\n31363\n31909\n32454\n32727\n33272\n33545\n34090\n34363\n34909\n36272\n36681\n37090\n38454\n38863\n39272\n40636\n41045\n41454\n43363\n43636\n45000\n45409\n45818\n47181\n48000\n49363\n49772\n50181\n52363\n52909\n53181\n53727\n54272\n54545\n55090\n55363\n55909\n56181\n56727\n57272\n57545\n58090\n58636\n58909\n59454\n59727\n60272\n60545\n61090\n61363\n61636\n62454\n63000\n63272\n63545\n64636\n64909\n65454\n65727\n66000\n66272\n66545\n66818\n67636\n68454\n68590\n68727\n76363\n77181\n77318\n77454\n85090\n85909\n86045\n86181\n87272\n87545\n87818\n88090\n88363\n88636\n89181\n89454\n89727\n90000\n90272\n90818\n91090\n91363\n92181\n92454\n92727\n93000\n93818\n94636\n94772\n94909\n96000\n96545\n97363\n97909\n98181\n98727\n99000\n99545\n99818\n100363\n100909\n101181\n101727\n102272\n102545\n102818\n103090\n103363\n103909\n104181\n104727\n105272\n105545\n106090\n106636\n106909\n107454\n107727\n108272\n108545\n109090\n109636\n109909\n110454\n111000\n111272\n111818\n112091\n112636\n112909\n113454\n113727\n114000\n114818\n115363\n115636\n115909\n117000\n117272\n117818\n118091\n118363\n119181\n119727\n120000\n120272\n121363\n121636\n121909\n122181\n122454\n122727\n123545\n124091\n124363\n124636\n125727\n126000\n126545\n126818\n127091\n127363\n127636\n127909\n128727\n129545\n129681\n129818\n137454\n138272\n138409\n138545\n146181\n147000\n147136\n147272\n148363\n148636\n148909\n149181\n149454\n149727\n150000\n150272\n150545\n150818\n151091\n151363\n151636\n151909\n152181\n152454\n152727\n153000\n153272\n153545\n153818\n154091\n154363\n154636\n154909\n157091\n157363\n157636\n157909\n158181\n158454\n158727\n159000\n159272\n159545\n159818\n160091\n160363\n160636\n160909\n161181\n161454\n162000\n162272\n162818\n163363\n163636\n164181\n164454\n165000\n165272\n165818\n166363\n166636\n167181\n167727\n168000\n168272\n168545\n168818\n169363\n169636\n170181\n170727\n171000\n171545\n172091\n172363\n172909\n173181\n173727\n174000\n174545\n175091\n175363\n175909\n176454\n176727\n177272\n177545\n178091\n178363\n178909\n179454\n179727\n180272\n180818\n181091\n181636\n181909\n182454\n182727\n183272\n183818\n184091\n184636\n185181\n185454\n185727\n186000\n186272\n186818\n187091\n187636\n188181\n188454\n189000\n189545\n189818\n190363\n190636\n191181\n191454\n192000\n192545\n192818\n193363\n193909\n194181\n194727\n195000\n195545\n195818\n196363\n196636\n196909\n197727\n198272\n198545\n198818\n199909\n200181\n200727\n201000\n201272\n202091\n202636\n202909\n203181\n203454\n204272\n204545\n205091\n205363\n205636\n206454\n207000\n207272\n207545\n208636\n208909\n209454\n209727\n210000\n210818\n211363\n211636\n211909\n212181\n213000\n213272\n#1\n1\n4\n3\n4\n3\n12\n3\n2\n3\n2\n1\n2\n1\n13\n13\n13\n13\n4\n3\n2\n1\n1\n1\n4\n3\n4\n3\n12\n3\n2\n3\n2\n1\n2\n1\n12\n24\n24\n24\n24\n4\n3\n2\n1\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n4\n4\n23\n1\n12\n3\n4\n4\n23\n1\n2\n4\n4\n23\n1\n12\n4\n4\n23\n1\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n12\n12\n24\n24\n24\n24\n4\n3\n2\n1\n4\n3\n2\n1\n4\n3\n2\n1\n1\n1\n4\n3\n4\n3\n12\n3\n2\n3\n2\n1\n2\n1\n13\n13\n13\n13\n4\n3\n2\n1\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n12\n12\n24\n24\n24\n24\n4\n3\n2\n1\n4\n3\n2\n1\n4\n3\n2\n1\n12\n1\n12\n1\n12\n12\n12\n13\n13\n13\n13\n13\n13\n13\n13\n1\n23\n23\n23\n23\n23\n23\n23\n23\n14\n12\n1\n12\n1\n12\n12\n12\n13\n13\n13\n13\n13\n13\n13\n13\n1\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n23\n23\n12\n12\n12\n23\n1\n13\n13\n13\n23\n23\n#136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n272\n272\n272\n272\n272\n136\n136\n1090\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n545\n272\n272\n272\n272\n272\n136\n136\n1090\n545\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n1363\n272\n409\n1363\n409\n409\n1363\n272\n409\n1363\n272\n1363\n272\n409\n1363\n409\n1363\n272\n409\n1363\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n136\n136\n1090\n272\n136\n136\n1090\n272\n136\n136\n1090\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n272\n272\n272\n272\n272\n136\n136\n1090\n545\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n136\n136\n1090\n272\n136\n136\n1090\n272\n136\n136\n1090\n272\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n136\n2181\n272\n136\n136\n136\n136\n136\n136\n272\n136\n136\n136\n136\n136\n136\n136\n136\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n545\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n272\n";
 
 
 //THIS NEEDS BLOCK NEEDS TO BE ADDED TO GLOBAL VARIABLES
-int times[1000];
-int notes[1000];
-int durations[1000];
+int times[MAX_INT_ARRAY_SIZE];
+int notes[MAX_INT_ARRAY_SIZE];
+int durations[MAX_INT_ARRAY_SIZE];
+
+//char time_char[MAX_CHAR_ARRAY_SIZE];
+//char note_char[MAX_CHAR_ARRAY_SIZE];
+//char duration_char[MAX_CHAR_ARRAY_SIZE];
 Note note_sequence[2000];
 int global_index = 0;
 int start = 0;
@@ -154,14 +160,14 @@ void setup() {
   }
   char request[500];
   
-  
-  sprintf(request, "GET /sandbox/sc/gagordon/final_project/song_file_handler.py?song_file_name=every_morning_guitar_medium HTTP/1.1\r\n");
+//  
+  sprintf(request, "GET /sandbox/sc/gagordon/final_project/song_file_handler.py?song_file_name=photograph_guitar_medium HTTP/1.1\r\n");
   strcat(request, "Host: 608dev-2.net\r\n"); //add more to the end
   strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
   strcat(request, "\r\n"); //add blank line!
-  //submit to function that performs GET.  It will return output using response_buffer char array
+//  submit to function that performs GET.  It will return output using response_buffer char array
   do_http_GET("608dev-2.net", request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-  Serial.println(response); //print to serial monitor
+//  Serial.println(response); //print to serial monitor
 
   //For Lab05a second part, you will uncomment the next two lines
   ledcSetup(PWM_CHANNEL, 60, 12);//create pwm channel, @50 Hz, with 12 bits of precision
@@ -186,15 +192,10 @@ void setup() {
   
   backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
   parse_song_file(response);
-//  Serial.println("-------Start of durations--------");
-//  for (int i = 0; i < 4000; i++) {
-//    Serial.println(durations[i]);
-//  }
-//  Serial.println("-------End of durations--------");
 
   //NEW VARS HERE IN SETUP NEED TO BE ADDED
   for (int i = 0; i < 2000; i++){
-    times[i] += 3000;
+    times[i] += NOTE_OFFSET;
   }
   global_index = 0;
   start = 0;
@@ -218,6 +219,8 @@ bool detect_note(){
 
 //NEEDS TO BE ADDED, JUST COPY PASTE OVER THE OLD ONE
 void draw_notes(){
+  
+
   if (millis() -start_time >= times[global_index]){
     int len[2];
     int length1;
@@ -449,11 +452,27 @@ void loop() {
     //Draws notes
     draw_notes();
 
+    
+     
+
     //Adds point total at the top of the screen
     tft.setCursor(0, 0, 1);
     tft.println("Points: ");
     tft.println(points);
     tft.setTextColor(TFT_RED, TFT_BLACK); //set color for font
+
+    if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME - 1000)){
+        tft.setCursor(80, 0, 2);
+        tft.println("READY!");
+      }
+      else if (millis() - start_time < NOTE_OFFSET + SCROLL_TIME){
+        tft.setCursor(80, 0, 2);
+        tft.println("SET!");
+      }
+      else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000)){
+        tft.setCursor(80, 0, 2);
+        tft.println("GO!");
+      }
 
     //---------------------------------------------
     
@@ -573,111 +592,87 @@ void random_delay() {
 
 
 void parse_song_file(char* song_file){
-  char time_char[2000];
-  char note_char[2000];
-  char duration_char[2000];
+  
   int t = 0;
   int time_index = 0;
   int note_index = 0;
   int duration_index = 0;
+  char tim[10];
+  char note[10];
+  char duration[10];
+  int t_index = 0;
+  int n_index = 0;
+  int d_index = 0;
   for (int i = 0; i< strlen(song_file); i++){
     
     if (t == 0){
       if (song_file[i] == '#'){
-        
         t = t + 1;
-        time_char[time_index] ='\0';
+        
+      }
+      else if (song_file[i] == '\n'){
+        tim[t_index] = '\0';
+        t_index = 0;
+        times[time_index] = atoi(tim);
+        ending_time = atoi(tim) + 5000;
+        time_index++;
         
       }
       else{
-        time_char[time_index] = song_file[i];
-        time_index++;
+        tim[t_index] = song_file[i];
+        t_index++;
       }
     }
     else if (t == 1){
       if (song_file[i] == '#'){
         t = t + 1;
-        note_char[note_index] ='\0';
         
       }
-      else{
-        note_char[note_index] = song_file[i];
-        note_index++;
-      }
-    }
-    else{
-        
-        duration_char[duration_index] = song_file[i];
-        duration_index++;
-      
-    }
-  }
-
-  char tim[10];
-  int tim_index = 0;
-  int times_index = 0;
-  Serial.println("Entering Times");
-  for (int i = 0; i < strlen(time_char); i++){
-      if (time_char[i] == '\n'){
-          tim[tim_index] = '\0';
-          int num = atoi(tim);
-         
-          times[times_index] = num;
-          ending_time = num;
-          Serial.println(num);
-          times_index++;
-          tim_index = 0;
-      }
-      else{
-        tim[tim_index] = time_char[i];
-        tim_index++;
-      }
-      
-  }
-
-  
-  times[times_index] = '\0';
-  note_char[note_index] = '\0';
-  char note[10];
-  int n_index = 0;
-  note_index = 0;
-  for (int i = 0; i < strlen(note_char); i++){
-    if (note_char[i] == '\n'){
+      else if (song_file[i] == '\n'){
+        note[n_index] = '\0';
+        n_index = 0;
         notes[note_index] = atoi(note);
-        note[0] ='\0';
-        n_index = 0;
         note_index++;
+        
+      }
+      else{
+        note[n_index] = song_file[i];
+        n_index++;
+      }
     }
     else{
-      note[n_index] = note_char[i];
-      n_index++;
-      
-    }
-  }
-
-  char duration[10];
-  duration_char[duration_index] = '\0';
-  n_index = 0;
-  duration_index = 0;
-  for (int i = 0; i < strlen(duration_char); i++){
-    if (duration_char[i] == '\n'){
-        duration[n_index] = '\0';
+      if (song_file[i] == '\n'){
+        duration[d_index] = '\0';
+        d_index = 0;
         durations[duration_index] = atoi(duration);
-        duration[0] = '\0';
-        n_index = 0;
         duration_index++;
-    }
-    else{
-      
-      duration[n_index] = duration_char[i];
-      n_index++;
+        
+      }
+      else{
+        duration[d_index] = song_file[i];
+        d_index++;
+      }
       
     }
   }
-  ending_time += 5000;
-  Serial.println("Ending Time!");
-  Serial.println(ending_time);
+//  Serial.println("TIMES");
+//  for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
+//    Serial.println(times[i]); 
+//  }
+//
+//  Serial.println("NOTES");
+//  for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
+//    Serial.println(notes[i]); 
+//  }
+//
+//  Serial.println("DURATIONS");
+//  for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
+//    Serial.println(durations[i]); 
+//  }
+  
 }
+
+
 uint8_t char_append(char* buff, char c, uint16_t buff_size) {
   int len = strlen(buff);
   if (len > buff_size) return false;
