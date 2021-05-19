@@ -79,10 +79,10 @@ int ammount1 = 0;
 int ammount2 = 0;
 int ammount3 = 0;
 
-const int BUTTON = 0;
-const int BUTTON2 = 5;
-const int BUTTON3 = 19;
-const int BUTTON4 = 14;
+const int BUTTON = 21;
+const int BUTTON2 = 14;
+const int BUTTON3 = 5;
+const int BUTTON4 = 0;
 
 const uint32_t PWM_CHANNEL = 0; //hardware pwm channel used in secon part
 const uint32_t PWM_CHANNEL2 = 1;
@@ -237,6 +237,23 @@ class NameGetter {
       menu_choice = menu_to_go_to;
       string_to_save_to = save_string;
       do_http_request_at_end = req;
+    }
+
+    void reset_namegetter(){
+      state = 1;
+      for(int i = 0; i < strlen(msg); i++){
+        msg[i] = '\0';
+      }   
+      for(int i = 0; i < strlen(query_string); i++){
+        query_string[i] = '\0';
+      }
+      for(int i = 0; i < strlen(roomname); i++){
+        roomname[i] = '\0';
+      }
+      
+      char_index = 0;
+      scrolling_timer = millis();
+
     }
 
     void update_menu_to_go_to(MENU menu_to_go_to){
@@ -441,6 +458,21 @@ class ExitMenu: public Menu {
           ammount3 = 0;
 
           menu = Player_Choice;
+          room_ng.reset_namegetter();
+
+          //http request to leave room.
+          char request[500];
+          char body[200];
+          sprintf(body, "user=%s&roomname=PLACEHOLDER&action=leave&password=PASSWORD", username);
+          sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+          sprintf(request + strlen(request), "Host: %s\r\n", host);
+          strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+          sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+          sprintf(request + strlen(request), body);
+          Serial.println(request);
+          do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+          Serial.println(response);
+
         }
       }
 
@@ -458,6 +490,7 @@ class MultiplayerMenu: public Menu {
       if (select_button == 1) {
         if (choice == 0) {
           menu = HostRoomNameInput;
+          room_ng.update_menu_to_go_to(Host_Waiting_Room);
           Serial.println(menu);
         } else if (choice == 1) {
           menu = JoinRoomNameInput;
@@ -497,9 +530,24 @@ class HostWaitingRoomMenu: public Menu {
           Serial.println(menu);
           //READY UP!
         } else if (choice == 1) {
+          room_ng.reset_namegetter();
           menu = Multiplayer_Menu;
           reset_menu();
           Serial.println(menu);
+
+          //http request to leave room.
+          char request[500];
+          char body[200];
+          sprintf(body, "user=%s&roomname=PLACEHOLDER&action=leave&password=PASSWORD", username);
+          sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
+          sprintf(request + strlen(request), "Host: %s\r\n", host);
+          strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+          sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+          sprintf(request + strlen(request), body);
+          Serial.println(request);
+          do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+          Serial.println(response);
+
         }
       }
       return choice;
@@ -552,13 +600,7 @@ void setup() {
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
   }
-  // if (imu.setupIMU(1)) {
-  //   Serial.println("IMU Connected!");
-  // } else {
-  //   Serial.println("IMU Not Connected :/");
-  //   Serial.println("Restarting");
-  //   ESP.restart(); // restart the ESP (proper way)
-  // }
+
   tft.init();
   tft.setRotation(2);
   tft.setTextSize(1);
@@ -591,14 +633,6 @@ void setup() {
     times[i] += 4000;
   }
 }
-
-
-//FOR SONG
-// action = “startgame”
-// user = username
-// song
-// instrument
-// difficulty
 
 
 MENU last_menu = UserNameInput;
@@ -670,7 +704,7 @@ void loop() {
       Serial.println("2 second timer");
       primary_timer = millis();
       char request[500];
-      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s HTTP/1.1\r\n", username);
+      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s&action=lobby HTTP/1.1\r\n", username);
       sprintf(request + strlen(request), "Host: %s\r\n\r\n", host);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
@@ -716,12 +750,12 @@ void loop() {
       Serial.println("2 second timer");
       primary_timer = millis();
       char request[500];
-      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s HTTP/1.1\r\n", username);
+      sprintf(request, "GET /sandbox/sc/team49/server.py?user=%s&action=lobby HTTP/1.1\r\n", username);
       sprintf(request + strlen(request), "Host: %s\r\n\r\n", host);
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       Serial.println(response);
       if(strstr(response, "Readying") != NULL){
-        menu = Instrument_Menu;
+        menu = Song_Menu;
       }
       change = true;
     }
@@ -760,9 +794,7 @@ void loop() {
 
           tft.fillScreen(TFT_BLACK);
           tft.setCursor(0, 0, 2);
-          menu = Exit_Menu;
-
-          
+          menu = Exit_Menu;          
       }
       draw_notes();
       if(detect_note()){
@@ -772,6 +804,7 @@ void loop() {
             ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
             score_index += 1;
             points += 1;
+            Serial.println("Button 3");
           }
           else{
             ledcWrite(PWM_CHANNEL5, 0);
@@ -783,6 +816,7 @@ void loop() {
             ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
             score_index += 1;
             points += 1;
+            Serial.println("Button 2");
           }
           else{
             ledcWrite(PWM_CHANNEL3, 0);
@@ -793,6 +827,7 @@ void loop() {
             ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
             score_index += 1;
             points += 1;
+            Serial.println("Button 1");
           }
           else{
             ledcWrite(PWM_CHANNEL, 0);
@@ -803,6 +838,7 @@ void loop() {
             ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
             score_index += 1;
             points += 1;
+            Serial.println("Button 4");
           }
           else{
             ledcWrite(PWM_CHANNEL2, 0);
@@ -836,7 +872,6 @@ void loop() {
         ledcWrite(PWM_CHANNEL5, 0);
         ledcWrite(PWM_CHANNEL4, 0);
       }
-      Serial.println(digitalRead(BUTTON3));
       delay(15);
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
@@ -895,10 +930,8 @@ void loop() {
       tft.println("Pick a Song:");
       tft.println("");
       tft.setTextSize(0.75);
-      int y_index[6] = {60, 80, 100, 115, 130};
-      int x_index[6] = {0, 0, 0, 0, 0};
-      for (int i = 0; i < 5; i++) {
-        tft.setCursor(x_index[i], y_index[i], 2);
+      for (int i = 0; i < 9; i++) {
+        tft.setCursor(0, 60 + 20 * i, 2);
         if (i == choice) {
           tft.setTextColor(TFT_BLACK, TFT_GREEN);
           tft.println(song_choices[i]);
@@ -1007,19 +1040,14 @@ void loop() {
       char request[500];
       char body[200];
       sprintf(body, "user=%s&roomname=%s&action=waiting&password=PASSWORD", username, roomname);
-      Serial.println("finishes thing");
       sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
       sprintf(request + strlen(request), "Host: %s\r\n", host);
       strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
       sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
       strcat(request, body);
-      Serial.println("Finishes copying");
       do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
       if(strstr(response, "Waiting") == NULL){
-        Serial.println(response);
-        Serial.println(millis());
         delay(atoi(response));
-        Serial.println(millis());
         menu = PlaySong;
         backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
         parse_song_file(current_song);
@@ -1041,6 +1069,7 @@ void loop() {
   last_menu = menu;
   last_choice = choice;
 }
+
 bool detect_note(){
   if(millis() - start_time + 70 >= times[score_index] && millis()- start_time - 150 <= times[score_index]){
     return true;
@@ -1055,7 +1084,7 @@ bool detect_note(){
 }
 
 void draw_notes(){
-//  char array_note[2] = notes[global_index]
+  //  char array_note[2] = notes[global_index]
   if (millis()- start_time + 3670 >= times[global_index]){
       if(notes[global_index]%10 == 1){
         Note new_note;
@@ -1088,21 +1117,15 @@ void draw_notes(){
 
   // Access attributes and set values
   
-//  Serial.println("this is the start");
-//  Serial.println(start);
+  //  Serial.println("this is the start");
+  //  Serial.println(start);
   tft.fillRect(0, 280, 240, 1, TFT_GREEN);
   for (int i = 0; i < 100; i++){
-      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate - 4, 59, 25, TFT_BLACK);
-      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_GREEN);
+      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_BLACK);
       squares[i].y_coordinate += 4;
+      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_GREEN);
 
-  }
-  
-}
-
-void random_delay() {
-  int random_val = random(0, 10000); //get a random number between 0 and 100
-  if (random_val > 9998) delay(random(0, 4));
+  } 
 }
 
 void parse_song_file(char* song_file){
