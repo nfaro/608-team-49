@@ -4,16 +4,19 @@
 #include <mpu6050_esp32.h>
 #include <math.h>
 #include <string.h>
+#include <cmath>
+#include <DFRobotDFPlayerMini.h>
 
+HardwareSerial mySoftwareSerial(2);
+DFRobotDFPlayerMini myDFPlayer;
 TFT_eSPI tft = TFT_eSPI();
-const int SCREEN_HEIGHT = 160;
-const int SCREEN_WIDTH = 128;
+
+int playing = 0;
+
 const int SELECT_BUTTON_PIN = 0;
 const int CHANGE_BUTTON_PIN = 5;
 const int REVERSE_BUTTON_PIN = 14;
 const int LOOP_PERIOD = 40;
-
-MPU6050 imu; //imu object called, appropriately, imu
 
 char network[] = "MIT";  //SSID for 6.08 Lab
 char password[] = ""; //Password for 6.08 Lab
@@ -21,25 +24,51 @@ char password[] = ""; //Password for 6.08 Lab
 
 //Some constants and some resources:
 const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
-const uint16_t OUT_BUFFER_SIZE = 5000; //size of buffer to hold HTTP response
-char old_response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
+const uint16_t OUT_BUFFER_SIZE = 10000; //size of buffer to hold HTTP response
+const int MAX_INT_ARRAY_SIZE = 800; //longest int section in library
+const int NOTE_OFFSET = 3000;
+const int SCROLL_TIME = 2100;
+
+char old_response[1500]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
+char leader_board_response[2000];
+
+char song[] = "photograph_guitar_medium";
+int mp3_song = 4;
 
 class Note {       // The class
   public:             // Access specifier
     int x_coordinate;        // Attribute (int variable)
     int y_coordinate;  // Attribute (string variable)
+    int rect_height = 0;
+    int start_time;
+    int duration;
+    int finished = 0; //0 == note_line, 1 = finished
+    int lane;
 };
 
 char username[200];
 char roomname[200];
 char action[10];
-char current_song[20000];
-int times[2000];
-int notes[2000];
-int durations[2000];
+int times[MAX_INT_ARRAY_SIZE];
+int notes[MAX_INT_ARRAY_SIZE];
+int durations[MAX_INT_ARRAY_SIZE];
 Note squares[100];
+
+Note note_sequence[2000];
+int global_index = 0;
+int start = 0;
+int start_time = 0;
+int still_on_screen = 0;
+int score_index = 0;
+int done = 0;
+int prev_button_state[5] = {0,0,0,0};  //Gives previous button state   -> gets set in main loop
+int current_button_state[5] = {0,0,0,0}; //Gives current button state -> gets set in main loop
+int can_transition[5] = {0,0,0,0}; //Indicates that it is within range to press down to start the note -> gets set to 0 at beginning of draw_notes, then gets set to 1 if front of note is within buffer
+int could_count[5] = {0,0,0,0}; //Means that the line is inside the note and has the potential to be counted -> gets set to 0 at beginning of draw_notes, gets set to 1 if line is inside the note
+int should_count[5] = {0,0,0,0}; // Means that we saw a transition at the beginning of the note -> gets set to 1 in main loop if there is a button transition and can transition is 1, gets set to 0 when a note moves beyond the line that was being counted before
+int ending_time;
 
 uint32_t primary_timer;
 
@@ -68,18 +97,13 @@ const uint8_t PIN3 = 27;
 const uint8_t PIN4 = 12;
 const uint8_t PIN5 = 13;
 
-int global_index = 0;
-int start;
-int start_time;
-int score_index = 1;
-
 int points = 0;
 int ammount = 0;
 int ammount1 = 0;
 int ammount2 = 0;
 int ammount3 = 0;
 
-const int BUTTON = 21;
+const int BUTTON = 19;
 const int BUTTON2 = 14;
 const int BUTTON3 = 5;
 const int BUTTON4 = 0;
@@ -90,6 +114,48 @@ const uint32_t PWM_CHANNEL3 = 2;
 const uint32_t PWM_CHANNEL4 = 4;
 const uint32_t PWM_CHANNEL5 = 5;
 
+/*----------------------------------
+   do_http_request Function:
+   Arguments:
+      char* host: null-terminated char-array containing host to connect to
+      char* request: null-terminated char-arry containing properly formatted HTTP request
+      char* response: char-array used as output for function to contain response
+      uint16_t response_size: size of response buffer (in bytes)
+      uint16_t response_timeout: duration we'll wait (in ms) for a response from server
+      uint8_t serial: used for printing debug information to terminal (true prints, false doesn't)
+   Return value:
+      void (none)
+*/
+void do_http_request(char* host, char* request, char* response, uint16_t response_size, uint16_t response_timeout, uint8_t serial) {
+  WiFiClient client; //instantiate a client object
+  if (client.connect(host, 80)) { //try to connect to host on port 80
+    if (serial) Serial.print(request);//Can do one-line if statements in C without curly braces
+    client.print(request);
+    memset(response, 0, response_size); //Null out (0 is the value of the null terminator '\0') entire buffer
+    uint32_t count = millis();
+    while (client.connected()) { //while we remain connected read out data coming back
+      client.readBytesUntil('\n', response, response_size);
+      if (serial) Serial.println(response);
+      if (strcmp(response, "\r") == 0) { //found a blank line!
+        break;
+      }
+      memset(response, 0, response_size);
+      if (millis() - count > response_timeout) break;
+    }
+    memset(response, 0, response_size);
+    count = millis();
+    while (client.available()) { //read out remaining text (body of response)
+      char_append(response, client.read(), OUT_BUFFER_SIZE);
+    }
+    if (serial) Serial.println(response);
+    client.stop();
+    if (serial) Serial.println("-----------");
+  } else {
+    if (serial) Serial.println("connection failed :/");
+    if (serial) Serial.println("wait 0.5 sec...");
+    client.stop();
+  }
+}
 
 class PWM_608
 {
@@ -131,14 +197,7 @@ void PWM_608::set_duty_cycle(float duty_cycle) {
   on_amt = (period * duty_cycle / 100.0);
 }
 
-PWM_608 backlight(PIN1, 120, 1); 
-
-//used to get x,y values from IMU accelerometer!
-void get_angle(float* x, float* y) {
-  imu.readAccelData(imu.accelCount);
-  *x = imu.accelCount[0] * imu.aRes;
-  *y = imu.accelCount[1] * imu.aRes;
-}
+PWM_608 backlight(PIN1, 120, 1); //create instance of PWM to control backlight on pin 1, operating at 50 Hz
 
 class Button {
   public:
@@ -579,7 +638,35 @@ DifficultyMenu difficulty_menu;
 ExitMenu exit_menu;
 
 void setup() {
-  Serial.begin(115200); //for debugging if needed.
+  mySoftwareSerial.begin(9600, SERIAL_8N1, 32, 33);  // speed, type, RX, TX
+  Serial.begin(115200);
+  
+  Serial.println();
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+  delay(1000);
+  while (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    
+    Serial.println(myDFPlayer.readType(),HEX);
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    //while(true);
+  }
+  Serial.println(F("DFPlayer Mini online."));
+  
+  myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
+  
+  //----Set volume----
+  myDFPlayer.volume(20);  //Set volume value (0~30).
+  myDFPlayer.volumeUp(); //Volume Up
+  myDFPlayer.volumeDown(); //Volume Down
+  
+  //----Set different EQ----
+  myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+  myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+
+
   WiFi.begin(network, password); //attempt to connect to wifi
   uint8_t count = 0; //count used for Wifi check times
   Serial.print("Attempting to connect to ");
@@ -627,7 +714,7 @@ void setup() {
 
   global_index = 0;
   start_time = millis();
-    backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
+  backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
   parse_song_file(response);
   for (int i = 0; i < 2000; i++){
     times[i] += 4000;
@@ -766,86 +853,133 @@ void loop() {
       change = false;
     }
   } else if (menu == PlaySong) {
-      if (millis() - start_time > 60000) {
-          char request[500];
-          char body[200];
-          tft.fillScreen(TFT_BLACK);
-          tft.setCursor(75, 0, 2);
-          tft.println("WELL DONE!");
-          tft.setCursor(65, 25, 2);
-          tft.println("Your Score Is:");
-          tft.setCursor(85, 40, 2);
-          tft.println(points);
-          sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song_choice, instrument, points);
-          sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
-          sprintf(request + strlen(request), "Host: %s\r\n", host);
-          strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
-          sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
-          strcat(request, body);
-          Serial.println("This is the request");
-          Serial.println(request);
-          do_http_request(host, request, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-          delay(5000);
-          tft.fillScreen(TFT_BLACK);
-          tft.setCursor(0, 0, 2);
-          tft.println(response);
+    if(millis() - start_time >= ending_time && done != 1){
+      char request[500];
+      char body[200];
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(75, 0, 2);
+      tft.println("WELL DONE!");
+      tft.setCursor(65, 25, 2);
+      tft.println("Your Score Is:");
+      tft.setCursor(85, 40, 2);
+      tft.println(points);
+      sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song, instrument, points);
+      sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
+      sprintf(request + strlen(request), "Host: %s\r\n", host);
+      strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
+      sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
+      strcat(request, body);
+      Serial.println("This is the request");
+      Serial.println(request);
+      do_http_request(host, request, leader_board_response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+      delay(5000);
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0, 2);
+      tft.println(leader_board_response);
+      done = 1;
+    }
+    else if (done ==1){
+      delay(5000);
+      tft.fillScreen(TFT_BLACK);
+      tft.setCursor(0, 0, 2);
+      menu = Exit_Menu;          
+    }
+    else{
 
-          delay(5000);
+      //NEEDS TO BE ADDED, CONTROLS STATE DURING SONG PLAYING. ALSO, ANDREI NEEDS TO ADD LEDS BACK TO THESE IF STATEMENTS.
 
-          tft.fillScreen(TFT_BLACK);
-          tft.setCursor(0, 0, 2);
-          menu = Exit_Menu;          
+      //Explanation of arrays:
+      //int prev_button_state[5] = {0,0,0,0};  //Gives previous button state   -> gets set in main loop
+      //int current_button_state[5] = {0,0,0,0}; //Gives current button state -> gets set in main loop
+      //int can_transition[5] = {0,0,0,0}; //Indicates that it is within range to press down to start the note -> gets set to 0 at beginning of draw_notes, then gets set to 1 if front of note is within buffer
+      //int could_count[5] = {0,0,0,0}; //Means that the line is inside the note and has the potential to be counted -> gets set to 0 at beginning of draw_notes, gets set to 1 if line is inside the note
+      //int should_count[5] = {0,0,0,0}; // Means that we saw a transition at the beginning of the note -> gets set to 1 in main loop if there is a button transition and can transition is 1, gets set to 0 when a note moves beyond the line that was being counted before
+      int transitions[5] = {0,0,0,0};
+
+      //Gets currentState of button
+      if (!digitalRead(BUTTON)) {
+        current_button_state[0] = 1;
+      } else {
+        current_button_state[0] = 0;
       }
+      if (!digitalRead(BUTTON2)) {
+        current_button_state[1] = 1;
+      } else {
+        current_button_state[1] = 0;
+      }
+      if (!digitalRead(BUTTON3)) {
+        current_button_state[2] = 1;
+      } else {
+        current_button_state[2] = 0;
+      }
+      if (!digitalRead(BUTTON4)) {
+        current_button_state[3] = 1;
+      } else {
+        current_button_state[3] = 0;
+      }
+
+      //Detects a new transition
+      if (current_button_state[0] == 1 && prev_button_state[0] == 0 && can_transition[0] == 1) {
+        should_count[0] = 1;
+      }
+      if (current_button_state[1] == 1 && prev_button_state[1] == 0 && can_transition[1] == 1) {
+        should_count[1] = 1;
+      }
+      if (current_button_state[2] == 1 && prev_button_state[2] == 0 && can_transition[2] == 1) {
+        should_count[2] = 1;
+      }
+      if (current_button_state[3] == 1 && prev_button_state[3] == 0 && can_transition[3] == 1) {
+        should_count[3] = 1;
+      }
+
+      //Adds points if it could and should be counted
+      if (should_count[0] == 1 && could_count[0] == 1 && current_button_state[0] == 1) {
+        points += 1;
+      }
+      if (should_count[1] == 1 && could_count[1] == 1 && current_button_state[1] == 1) {
+        points += 1;
+      }
+      if (should_count[2] == 1 && could_count[2] == 1 && current_button_state[2] == 1) {
+        points += 1;
+      }
+      if (should_count[3] == 1 && could_count[3] == 1 && current_button_state[3] == 1) {
+        points += 1;
+      }
+
+      //Moves curr button state to previous
+      prev_button_state[0] = current_button_state[0];
+      prev_button_state[1] = current_button_state[1];
+      prev_button_state[2] = current_button_state[2];
+      prev_button_state[3] = current_button_state[3];
+
+      //Draws notes
       draw_notes();
-      if(detect_note()){
-        if (notes[score_index]%10 == 1){
-          if (!digitalRead(BUTTON3)){
-            ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
-            ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
-            score_index += 1;
-            points += 1;
-            Serial.println("Button 3");
-          }
-          else{
-            ledcWrite(PWM_CHANNEL5, 0);
-            ledcWrite(PWM_CHANNEL4, 0);
-          }
+
+      //Adds point total at the top of the screen
+      tft.setCursor(0, 0, 1);
+      tft.println("Points: ");
+      tft.println(points);
+      tft.setTextColor(TFT_RED, TFT_BLACK); //set color for font
+
+      if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME - 1000)){
+          tft.setCursor(80, 0, 2);
+          tft.println("READY!");
         }
-        if (notes[score_index]%10 == 2){
-          if (!digitalRead(BUTTON2)){
-            ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
-            score_index += 1;
-            points += 1;
-            Serial.println("Button 2");
-          }
-          else{
-            ledcWrite(PWM_CHANNEL3, 0);
-          }
+        else if (millis() - start_time < NOTE_OFFSET + SCROLL_TIME){
+          tft.setCursor(80, 0, 2);
+          tft.println("SET!");
         }
-        if (notes[score_index]%10 == 3){
-          if(!digitalRead(BUTTON)){
-            ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
-            score_index += 1;
-            points += 1;
-            Serial.println("Button 1");
-          }
-          else{
-            ledcWrite(PWM_CHANNEL, 0);
-          }
+        else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
+          tft.setCursor(80, 0, 2);
+          tft.println("GO!");
+          myDFPlayer.play(mp3_song);
+          playing = 1;
         }
-        if (notes[score_index]%10 == 4){
-          if(!digitalRead(BUTTON4)){
-            ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
-            score_index += 1;
-            points += 1;
-            Serial.println("Button 4");
-          }
-          else{
-            ledcWrite(PWM_CHANNEL2, 0);
-          }
+        else if(playing ==1){
+          
         }
-        
-      }
+
+     
       if (!digitalRead(BUTTON)) {
         ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
       }
@@ -871,8 +1005,10 @@ void loop() {
       else{
         ledcWrite(PWM_CHANNEL5, 0);
         ledcWrite(PWM_CHANNEL4, 0);
+    
       }
       delay(15);
+    }
   } else if (menu == Instrument_Menu) {
     choice = instrument_menu.update(change_button_val, select_button_val);
     if (change) {
@@ -1012,8 +1148,9 @@ void loop() {
         sprintf(requestO + strlen(requestO), "Content-Length: %d\r\n\r\n", strlen(bodyO));
         strcat(requestO, bodyO);
         Serial.println(response);
-        do_http_request(host, requestO, current_song, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-        Serial.println(current_song);
+        do_http_request(host, requestO, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+        Serial.println(response);
+        parse_song_file(response);
 
         ready = false;
         char request[500];
@@ -1049,8 +1186,6 @@ void loop() {
       if(strstr(response, "Waiting") == NULL){
         delay(atoi(response));
         menu = PlaySong;
-        backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
-        parse_song_file(current_song);
         for (int i = 0; i < 2000; i++){
           times[i] += 4000;
         }
@@ -1070,11 +1205,12 @@ void loop() {
   last_choice = choice;
 }
 
+
 bool detect_note(){
-  if(millis() - start_time + 70 >= times[score_index] && millis()- start_time - 150 <= times[score_index]){
+  if(millis() + 70 >= times[score_index] && millis() - 150 <= times[score_index]){
     return true;
   }
-  else if(millis() - start_time - 151 > times[score_index]){
+  else if(millis() - 151 > times[score_index]){
     score_index += 1;
     return false;
   }
@@ -1083,155 +1219,203 @@ bool detect_note(){
   }
 }
 
+//NEEDS TO BE ADDED, JUST COPY PASTE OVER THE OLD ONE
 void draw_notes(){
-  //  char array_note[2] = notes[global_index]
-  if (millis()- start_time + 3670 >= times[global_index]){
-      if(notes[global_index]%10 == 1){
+  
+
+  if (millis() - start_time >= times[global_index]){
+    int len[2];
+    int length1;
+    if (notes[global_index]/10 == 0){
+      len[0] = notes[global_index];
+      length1 = 1;
+    }
+    else{
+      int temp1 = notes[global_index]/10;
+      int temp2 = notes[global_index]%10;
+      if (temp1 == temp2){
+        len[0]= notes[global_index];
+        length1 = 1;
+      }
+      else{
+        len[0] = notes[global_index]/10;
+        len[1] = notes[global_index]%10;
+        length1 = 2;
+      }
+    }
+    for (int j = 0; j < length1;j++){
+      int temp_note = len[j];
+      if(temp_note == 1){
         Note new_note;
         new_note.x_coordinate = 0; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        new_note.rect_height = 0;
+        new_note.start_time = times[global_index];
+        new_note.duration = durations[global_index];
+        new_note.lane = 1;
+        note_sequence[start] = new_note;
       }
-      else if(notes[global_index]%10 == 2){
+      else if(temp_note == 2){
         Note new_note;
         new_note.x_coordinate = 60; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        new_note.rect_height = 0;
+        new_note.start_time = times[global_index];
+        new_note.duration = durations[global_index];
+        new_note.lane = 2;
+        note_sequence[start] = new_note;
       }
-      else if(notes[global_index]%10 == 3){
+      else if(temp_note == 3){
         Note new_note;
         new_note.x_coordinate = 120; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        new_note.rect_height = 0;
+        new_note.start_time = times[global_index];
+        new_note.duration = durations[global_index];
+        new_note.lane = 3;
+        note_sequence[start] = new_note;
       }
-      else if(notes[global_index]%10 == 4){
+      else if(temp_note == 4){
         Note new_note;
         new_note.x_coordinate = 180; 
         new_note.y_coordinate= 0;
-        squares[global_index] = new_note;
+        new_note.rect_height = 0;
+        new_note.start_time = times[global_index];
+        new_note.duration = durations[global_index];
+        new_note.lane = 4;
+        note_sequence[start] = new_note;
       }
-      global_index ++;
+      start++;
+      
+    }
+    global_index++;
+    
+      
   }
 
     // Create an object of MyClass
 
   // Access attributes and set values
   
-  //  Serial.println("this is the start");
-  //  Serial.println(start);
+  tft.fillScreen(TFT_BLACK);
   tft.fillRect(0, 280, 240, 1, TFT_GREEN);
-  for (int i = 0; i < 100; i++){
-      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_BLACK);
-      squares[i].y_coordinate += 4;
-      tft.drawRect(squares[i].x_coordinate, squares[i].y_coordinate, 59, 25, TFT_GREEN);
+  for(int l = 0; l < 4; l++) {
+    can_transition[l] = 0;
+    could_count[l] = 0;
+  }
+  for (int i = still_on_screen; i < start; i++){
 
-  } 
+      //Sets buffer depending on if it is easy or hard, in terms of pixels.
+      int range;
+      if (difficulty == "easy") {
+        range=16;
+      } else {
+        range = 8;
+      }
+
+      //Gives notification that a user should be pressing around this time
+      if (abs(note_sequence[i].y_coordinate + note_sequence[i].rect_height - 280 <= range)) {
+        can_transition[note_sequence[i].lane - 1] = 1;
+      }
+
+      //Says that a point should be allocated, as the button is being held during the timing of the note.
+      int note_state = 0;
+      if (note_sequence[i].y_coordinate + note_sequence[i].rect_height - 280 >= 0 && note_sequence[i].y_coordinate - 280 <= 0) {
+        could_count[note_sequence[i].lane - 1] = 1;
+        //Node_state denotes that this specific note is one that should be played - is used to see when a note should no longer be played, as its movement
+        // causes the note to move beyond the line
+        note_state = 1;
+      }
+
+      
+      if (note_sequence[i].finished ==0) {
+        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate - 4, 60, note_sequence[i].rect_height, TFT_BLACK);
+        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        if (millis() - start_time - note_sequence[i].start_time >= note_sequence[i].duration) {
+          note_sequence[i].finished = 1;
+        } else {
+          note_sequence[i].rect_height += 4;
+        }
+      } else {
+        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate - 4, 60, note_sequence[i].rect_height, TFT_BLACK);
+        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        note_sequence[i].y_coordinate += 4;
+        if (note_sequence[i].y_coordinate > 319) { 
+          still_on_screen++;
+        }
+      }
+
+      //This means that the note has moved beyond the line, and should thus no longer be counted.
+      if (note_state == 1 &&  note_sequence[i].y_coordinate - 280 > 0) {
+        should_count[note_sequence[i].lane - 1] = 0;
+      }
+  }
 }
 
 void parse_song_file(char* song_file){
-  char time_char[2000];
-  char note_char[2000];
-  char duration_char[2000];
+  
   int t = 0;
   int time_index = 0;
   int note_index = 0;
   int duration_index = 0;
+  char tim[10];
+  char note[10];
+  char duration[10];
+  int t_index = 0;
+  int n_index = 0;
+  int d_index = 0;
   for (int i = 0; i< strlen(song_file); i++){
     
     if (t == 0){
       if (song_file[i] == '#'){
-        
         t = t + 1;
-        time_char[time_index] ='\0';
+        
+      }
+      else if (song_file[i] == '\n'){
+        tim[t_index] = '\0';
+        t_index = 0;
+        times[time_index] = atoi(tim);
+        ending_time = atoi(tim) + 5000;
+        time_index++;
         
       }
       else{
-        time_char[time_index] = song_file[i];
-        time_index++;
+        tim[t_index] = song_file[i];
+        t_index++;
       }
     }
     else if (t == 1){
       if (song_file[i] == '#'){
         t = t + 1;
-        note_char[note_index] ='\0';
         
       }
-      else{
-        note_char[note_index] = song_file[i];
-        note_index++;
-      }
-    }
-    else{
-        
-        duration_char[duration_index] = song_file[i];
-        duration_index++;
-      
-    }
-  }
-
-  char tim[10];
-  int tim_index = 0;
-  int times_index = 0;
-  for (int i = 0; i < strlen(time_char); i++){
-      if (time_char[i] == '\n'){
-          tim[tim_index] = '\0';
-          int num = atoi(tim);
-         
-          times[times_index] = num;
-          times_index++;
-          tim_index = 0;
-      }
-      else{
-        tim[tim_index] = time_char[i];
-        tim_index++;
-      }
-      
-  }
-
-  
-  times[times_index] = '\0';
-  note_char[note_index] = '\0';
-  char note[10];
-  int n_index = 0;
-  note_index = 0;
-  for (int i = 0; i < strlen(note_char); i++){
-    if (note_char[i] == '\n'){
-        note[strlen(note)] = '\0';
-        if (strlen(note) > 1){
-          notes[note_index] = atoi(note);
-        }
-        else{
-          notes[note_index] = (int) note;
-        }
+      else if (song_file[i] == '\n'){
+        note[n_index] = '\0';
         n_index = 0;
+        notes[note_index] = atoi(note);
         note_index++;
+        
+      }
+      else{
+        note[n_index] = song_file[i];
+        n_index++;
+      }
     }
     else{
-      note[n_index] = note_char[i];
-      n_index++;
-      
-    }
-  }
-
-  char duration[10];
-  duration_char[duration_index] = '\0';
-  n_index = 0;
-  duration_index = 0;
-  for (int i = 0; i < strlen(duration_char); i++){
-    if (duration_char[i] == '\n'){
-        duration[n_index] = '\0';
+      if (song_file[i] == '\n'){
+        duration[d_index] = '\0';
+        d_index = 0;
         durations[duration_index] = atoi(duration);
-        duration[0] = '\0';
-        n_index = 0;
         duration_index++;
-    }
-    else{
+        
+      }
+      else{
+        duration[d_index] = song_file[i];
+        d_index++;
+      }
       
-      duration[n_index] = duration_char[i];
-      n_index++;
-      
     }
-  }  
+  }
 }
 
 /*----------------------------------
@@ -1252,45 +1436,3 @@ uint8_t char_append(char* buff, char c, uint16_t buff_size) {
   return true;
 }
 
-/*----------------------------------
-   do_http_request Function:
-   Arguments:
-      char* host: null-terminated char-array containing host to connect to
-      char* request: null-terminated char-arry containing properly formatted HTTP request
-      char* response: char-array used as output for function to contain response
-      uint16_t response_size: size of response buffer (in bytes)
-      uint16_t response_timeout: duration we'll wait (in ms) for a response from server
-      uint8_t serial: used for printing debug information to terminal (true prints, false doesn't)
-   Return value:
-      void (none)
-*/
-void do_http_request(char* host, char* request, char* response, uint16_t response_size, uint16_t response_timeout, uint8_t serial) {
-  WiFiClient client; //instantiate a client object
-  if (client.connect(host, 80)) { //try to connect to host on port 80
-    if (serial) Serial.print(request);//Can do one-line if statements in C without curly braces
-    client.print(request);
-    memset(response, 0, response_size); //Null out (0 is the value of the null terminator '\0') entire buffer
-    uint32_t count = millis();
-    while (client.connected()) { //while we remain connected read out data coming back
-      client.readBytesUntil('\n', response, response_size);
-      if (serial) Serial.println(response);
-      if (strcmp(response, "\r") == 0) { //found a blank line!
-        break;
-      }
-      memset(response, 0, response_size);
-      if (millis() - count > response_timeout) break;
-    }
-    memset(response, 0, response_size);
-    count = millis();
-    while (client.available()) { //read out remaining text (body of response)
-      char_append(response, client.read(), OUT_BUFFER_SIZE);
-    }
-    if (serial) Serial.println(response);
-    client.stop();
-    if (serial) Serial.println("-----------");
-  } else {
-    if (serial) Serial.println("connection failed :/");
-    if (serial) Serial.println("wait 0.5 sec...");
-    client.stop();
-  }
-}
