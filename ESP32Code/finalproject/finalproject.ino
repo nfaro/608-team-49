@@ -108,9 +108,9 @@ int ammount1 = 0;
 int ammount2 = 0;
 int ammount3 = 0;
 
-const int BUTTON = 5;
+const int BUTTON = 15;
 const int BUTTON2 = 14;
-const int BUTTON3 = 15;
+const int BUTTON3 = 5;
 const int BUTTON4 = 0;
 
 const uint32_t PWM_CHANNEL = 0; //hardware pwm channel used in secon part
@@ -146,6 +146,7 @@ void do_http_request(char* host, char* request, char* response, uint16_t respons
       }
       memset(response, 0, response_size);
       if (millis() - count > response_timeout) break;
+      
     }
     memset(response, 0, response_size);
     count = millis();
@@ -679,7 +680,7 @@ void setup() {
   myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
   
   //----Set volume----
-  myDFPlayer.volume(20);  //Set volume value (0~30).
+  myDFPlayer.volume(10);  //Set volume value (0~30).
   myDFPlayer.volumeUp(); //Volume Up
   myDFPlayer.volumeDown(); //Volume Down
   
@@ -716,7 +717,7 @@ void setup() {
   tft.setTextColor(TFT_GREEN, TFT_BLACK); //set color of font to green foreground, black background
   pinMode(SELECT_BUTTON_PIN, INPUT_PULLUP);
   pinMode(CHANGE_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(BUTTON, INPUT_PULLUP);
+  pinMode(BUTTON3, INPUT_PULLUP);
   pinMode(BUTTON2, INPUT_PULLUP);
   strcpy(instrument, instrument_choices[0]);
   primary_timer = millis();
@@ -1009,18 +1010,18 @@ void loop() {
 
    
       if (!digitalRead(BUTTON4)) {
-        ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
-      }
-      else{
-        ledcWrite(PWM_CHANNEL, 0);
-      }
-      if(!digitalRead(BUTTON2)){
         ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL2, 0);
       }
-      if (!digitalRead(BUTTON3)){
+      if(!digitalRead(BUTTON3)){
+        ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
+      }
+      else{
+        ledcWrite(PWM_CHANNEL, 0);
+      }
+      if (!digitalRead(BUTTON2)){
         ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
       }
       else{
