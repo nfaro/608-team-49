@@ -35,7 +35,7 @@ char host[] = "608dev-2.net";
 char leader_board_response[2000];
 
 char song[] = "photograph_guitar_medium";
-int mp3_song = 4;
+int mp3_song;
 
 class Note {       // The class
   public:             // Access specifier
@@ -453,6 +453,7 @@ class SongMenu: public Menu {
       }
       if (select_button == 1) {
         strcpy(song_choice, song_choices[choice]);
+        mp3_song = choice;
         menu = Instrument_Menu;
       }
       return choice;
@@ -985,25 +986,25 @@ void loop() {
       }
 
    
-      if (!digitalRead(BUTTON)) {
+      if (!digitalRead(BUTTON4)) {
         ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL, 0);
       }
-      if(!digitalRead(BUTTON4)){
+      if(!digitalRead(BUTTON2)){
         ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL2, 0);
       }
-      if (!digitalRead(BUTTON2)){
+      if (!digitalRead(BUTTON3)){
         ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL3, 0);
       }
-      if (!digitalRead(BUTTON3)){
+      if (!digitalRead(BUTTON)){
         ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
         ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
       }
