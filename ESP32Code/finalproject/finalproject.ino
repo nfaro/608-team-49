@@ -695,6 +695,8 @@ void setup() {
   tft.setTextColor(TFT_GREEN, TFT_BLACK); //set color of font to green foreground, black background
   pinMode(SELECT_BUTTON_PIN, INPUT_PULLUP);
   pinMode(CHANGE_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON, INPUT_PULLUP);
+  pinMode(BUTTON2, INPUT_PULLUP);
   strcpy(instrument, instrument_choices[0]);
   primary_timer = millis();
 
@@ -878,11 +880,13 @@ void loop() {
       tft.println(leader_board_response);
       done = 1;
     }
-    else if (done ==1){
+    else if (done == 1){
       delay(5000);
       tft.fillScreen(TFT_BLACK);
       tft.setCursor(0, 0, 2);
-      menu = Exit_Menu;          
+      menu = Exit_Menu;
+      done = 0;          
+      playing = 0;
     }
     else{
 
@@ -962,24 +966,25 @@ void loop() {
       tft.setTextColor(TFT_RED, TFT_BLACK); //set color for font
 
       if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME - 1000)){
-          tft.setCursor(80, 0, 2);
-          tft.println("READY!");
-        }
-        else if (millis() - start_time < NOTE_OFFSET + SCROLL_TIME){
-          tft.setCursor(80, 0, 2);
-          tft.println("SET!");
-        }
-        else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
-          tft.setCursor(80, 0, 2);
-          tft.println("GO!");
-          myDFPlayer.play(mp3_song);
-          playing = 1;
-        }
-        else if(playing ==1){
-          
-        }
+        tft.setCursor(80, 0, 2);
+        tft.println("READY!");
+      }
+      else if (millis() - start_time < NOTE_OFFSET + SCROLL_TIME){
+        tft.setCursor(80, 0, 2);
+        tft.println("SET!");
+      }
+      else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
+        tft.setCursor(80, 0, 2);
+        tft.println("GO!");
+        myDFPlayer.play(mp3_song);
+        playing = 1;
+        tft.fillScreen(TFT_BLACK);
+      }
+      else if(playing ==1){
+        
+      }
 
-     
+   
       if (!digitalRead(BUTTON)) {
         ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
       }
@@ -1297,7 +1302,6 @@ void draw_notes(){
 
   // Access attributes and set values
   
-  tft.fillScreen(TFT_BLACK);
   tft.fillRect(0, 280, 240, 1, TFT_GREEN);
   for(int l = 0; l < 4; l++) {
     can_transition[l] = 0;
@@ -1375,7 +1379,7 @@ void parse_song_file(char* song_file){
         tim[t_index] = '\0';
         t_index = 0;
         times[time_index] = atoi(tim);
-        ending_time = atoi(tim) + 5000;
+        ending_time = atoi(tim) + 10000;
         time_index++;
         
       }
