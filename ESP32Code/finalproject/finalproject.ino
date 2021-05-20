@@ -18,8 +18,11 @@ const int CHANGE_BUTTON_PIN = 5;
 const int REVERSE_BUTTON_PIN = 14;
 const int LOOP_PERIOD = 40;
 
-char network[] = "MIT";  //SSID for 6.08 Lab
-char password[] = ""; //Password for 6.08 Lab
+
+const int EVERY_MORNING_MP3 = 1;
+
+char network[] = "MIT Uncensored";  //SSID for 6.08 Lab
+char password[] = "E?3QjXep>&gy"; //Password for 6.08 Lab
 
 
 //Some constants and some resources:
@@ -27,15 +30,16 @@ const int RESPONSE_TIMEOUT = 6000; //ms to wait for response from host
 const uint16_t OUT_BUFFER_SIZE = 10000; //size of buffer to hold HTTP response
 const int MAX_INT_ARRAY_SIZE = 800; //longest int section in library
 const int NOTE_OFFSET = 3000;
-const int SCROLL_TIME = 2100;
+const int SCROLL_TIME = 1100;
 
 char old_response[1500]; //char array buffer to hold HTTP request
 char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
 char leader_board_response[2000];
 
-char song[] = "photograph_guitar_medium";
-int mp3_song = 4;
+
+int mp3_choice;
+int temp_for_choice;
 
 class Note {       // The class
   public:             // Access specifier
@@ -46,6 +50,8 @@ class Note {       // The class
     int duration;
     int finished = 0; //0 == note_line, 1 = finished
     int lane;
+
+    
 };
 
 char username[200];
@@ -78,8 +84,8 @@ bool ready = false;
 enum MENU {UserNameInput, Player_Choice, Multiplayer_Menu, HostRoomNameInput, 
   Host_Waiting_Room, JoinRoomNameInput, Join_Waiting_Room, 
   Song_Menu, Instrument_Menu, Difficulty_Menu, Waiting_Room, PlaySong, Exit_Menu} menu = UserNameInput;
-
-const char *song_choices[12] = { "Every Morning", "Fluorescent Adolescent", "The Less I Know the Better", "Own Worst Enemy", "Photograph", "Still Into You", "Under Cover of Darkness", "What You Know", "When I Come Around"};
+const int SONG_CHOICE_LENGTH = 12;
+const char *song_choices[12] = { "Every Morning", "Fluorescent Adolescent", "My Own Worst Enemy", "Photograph", "Still Into You", "The Less I Know the Better", "Under Cover of Darkness", "What You Know", "When I Come Around"};
 const char *instrument_choices[3] = { "Guitar", "Drums" };
 const char *multiplayer_choices[4] = { "Host Room", "Join Room", "View Rooms" };
 const char *host_waiting_choices[3] = { "Start", "Cancel" };
@@ -103,9 +109,9 @@ int ammount1 = 0;
 int ammount2 = 0;
 int ammount3 = 0;
 
-const int BUTTON = 19;
+const int BUTTON = 5;
 const int BUTTON2 = 14;
-const int BUTTON3 = 5;
+const int BUTTON3 = 15;
 const int BUTTON4 = 0;
 
 const uint32_t PWM_CHANNEL = 0; //hardware pwm channel used in secon part
@@ -453,6 +459,10 @@ class SongMenu: public Menu {
       }
       if (select_button == 1) {
         strcpy(song_choice, song_choices[choice]);
+        temp_for_choice = choice+1;
+        mp3_choice = temp_for_choice;
+        
+        
         menu = Instrument_Menu;
       }
       return choice;
@@ -486,19 +496,32 @@ class ExitMenu: public Menu {
       if (select_button == 1) {
         ready = true;
         if (choice == 0) {
+          Serial.println("RESTARTING NOW BITCH");
           start_time = millis();
           global_index = 0;
           start=0;
+          still_on_screen = 0;
           score_index = 1;
+          
+          points = 0;
+          menu = Waiting_Room; 
+          tft.fillScreen(TFT_BLACK);
+        } else if (choice == 1) {
+          memset(difficulty, 0, sizeof(difficulty));
+          memset(song_choice, 0, sizeof(song_choice));
+          memset(instrument, 0, sizeof(instrument));
+
+          global_index = 0;
+          start=0;
+          start_time;
+          score_index = 1;
+          still_on_screen = 0;
           
           points = 0;
           ammount = 0;
           ammount1 = 0;
           ammount2 = 0;
           ammount3 = 0;
-          menu = PlaySong; 
-          tft.fillScreen(TFT_BLACK);
-        } else if (choice == 1) {
           menu = Song_Menu;
         } else if (choice == 2) {
           memset(difficulty, 0, sizeof(difficulty));
@@ -509,6 +532,7 @@ class ExitMenu: public Menu {
           start=0;
           start_time;
           score_index = 1;
+          still_on_screen = 0;
           
           points = 0;
           ammount = 0;
@@ -717,9 +741,9 @@ void setup() {
   global_index = 0;
   start_time = millis();
   backlight.set_duty_cycle(60); //initialize the software PWM to be at 30%
-  parse_song_file(response);
-  for (int i = 0; i < 2000; i++){
-    times[i] += 4000;
+//  parse_song_file(response);
+  for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
+    times[i] += NOTE_OFFSET;
   }
 }
 
@@ -865,8 +889,8 @@ void loop() {
       tft.println("Your Score Is:");
       tft.setCursor(85, 40, 2);
       tft.println(points);
-      sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song, instrument, points);
-      sprintf(request, "POST /sandbox/sc/nfaro/server.py HTTP/1.1\r\n");
+      sprintf(body, "user=%s&song=%s&instruments=%s&score=%i&action=leaderboard", username, song_choice, instrument, points);
+      sprintf(request, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
       sprintf(request + strlen(request), "Host: %s\r\n", host);
       strcat(request, "Content-Type: application/x-www-form-urlencoded\r\n");
       sprintf(request + strlen(request), "Content-Length: %d\r\n\r\n", strlen(body));
@@ -976,7 +1000,9 @@ void loop() {
       else if (millis() - start_time < (NOTE_OFFSET + SCROLL_TIME + 1000) && playing == 0){
         tft.setCursor(80, 0, 2);
         tft.println("GO!");
-        myDFPlayer.play(mp3_song);
+        Serial.println("MP3 SONG");
+        Serial.println(mp3_choice);
+        myDFPlayer.play(mp3_choice);
         playing = 1;
         tft.fillScreen(TFT_BLACK);
       }
@@ -1143,18 +1169,26 @@ void loop() {
       change = false;
     }
   } else if (menu == Waiting_Room) {
+    Serial.println("Entering Waiting Room");
+    Serial.println(ready);
     if(ready){
+//        if(song_choice == "Every Morning"){ 
+//              mp3_choice = EVERY_MORNING_MP3;
+//              
+//        }
+//        Serial.println("MP3 CHOICE");
+//        Serial.println(mp3_choice);
         char requestO[500];
         char bodyO[200];
+        Serial.println("SONG_CHOICE");
+        Serial.println(song_choice);
         sprintf(bodyO, "user=%s&song=%s&instrument=%s&difficulty=%s&action=startgame", username, song_choice, instrument, difficulty);
         sprintf(requestO, "POST /sandbox/sc/team49/server.py HTTP/1.1\r\n");
         sprintf(requestO + strlen(requestO), "Host: %s\r\n", host);
         strcat(requestO, "Content-Type: application/x-www-form-urlencoded\r\n");
         sprintf(requestO + strlen(requestO), "Content-Length: %d\r\n\r\n", strlen(bodyO));
         strcat(requestO, bodyO);
-        Serial.println(response);
         do_http_request(host, requestO, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-        Serial.println(response);
         parse_song_file(response);
 
         ready = false;
@@ -1191,8 +1225,9 @@ void loop() {
       if(strstr(response, "Waiting") == NULL){
         delay(atoi(response));
         menu = PlaySong;
-        for (int i = 0; i < 2000; i++){
-          times[i] += 4000;
+        Serial.println("Entering Play Song for first time");
+        for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
+          times[i] += NOTE_OFFSET;
         }
         global_index = 0;
         start_time = millis();
@@ -1226,7 +1261,8 @@ bool detect_note(){
 
 //NEEDS TO BE ADDED, JUST COPY PASTE OVER THE OLD ONE
 void draw_notes(){
-  
+  Serial.println(global_index);
+  Serial.println(times[global_index]);
 
   if (millis() - start_time >= times[global_index]){
     int len[2];
@@ -1258,6 +1294,7 @@ void draw_notes(){
         new_note.start_time = times[global_index];
         new_note.duration = durations[global_index];
         new_note.lane = 1;
+        
         note_sequence[start] = new_note;
       }
       else if(temp_note == 2){
@@ -1268,6 +1305,7 @@ void draw_notes(){
         new_note.start_time = times[global_index];
         new_note.duration = durations[global_index];
         new_note.lane = 2;
+        
         note_sequence[start] = new_note;
       }
       else if(temp_note == 3){
@@ -1278,6 +1316,7 @@ void draw_notes(){
         new_note.start_time = times[global_index];
         new_note.duration = durations[global_index];
         new_note.lane = 3;
+        
         note_sequence[start] = new_note;
       }
       else if(temp_note == 4){
@@ -1288,6 +1327,7 @@ void draw_notes(){
         new_note.start_time = times[global_index];
         new_note.duration = durations[global_index];
         new_note.lane = 4;
+        
         note_sequence[start] = new_note;
       }
       start++;
@@ -1302,7 +1342,7 @@ void draw_notes(){
 
   // Access attributes and set values
   
-  tft.fillRect(0, 280, 240, 1, TFT_GREEN);
+  tft.fillRect(0, 280, 240, 1, TFT_WHITE);
   for(int l = 0; l < 4; l++) {
     can_transition[l] = 0;
     could_count[l] = 0;
@@ -1334,7 +1374,15 @@ void draw_notes(){
       
       if (note_sequence[i].finished ==0) {
         tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate - 4, 60, note_sequence[i].rect_height, TFT_BLACK);
-        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        if (note_sequence[i].lane == 1) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_YELLOW);
+        } else if (note_sequence[i].lane == 2) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        } else if (note_sequence[i].lane == 3) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_BLUE);
+        } else {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_RED);
+        }
         if (millis() - start_time - note_sequence[i].start_time >= note_sequence[i].duration) {
           note_sequence[i].finished = 1;
         } else {
@@ -1342,7 +1390,15 @@ void draw_notes(){
         }
       } else {
         tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate - 4, 60, note_sequence[i].rect_height, TFT_BLACK);
-        tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        if (note_sequence[i].lane == 1) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_YELLOW);
+        } else if (note_sequence[i].lane == 2) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_GREEN);
+        } else if (note_sequence[i].lane == 3) {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_BLUE);
+        } else {
+          tft.drawRect(note_sequence[i].x_coordinate, note_sequence[i].y_coordinate, 60, note_sequence[i].rect_height, TFT_RED);
+        }
         note_sequence[i].y_coordinate += 4;
         if (note_sequence[i].y_coordinate > 319) { 
           still_on_screen++;
@@ -1439,4 +1495,3 @@ uint8_t char_append(char* buff, char c, uint16_t buff_size) {
   buff[len + 1] = '\0';
   return true;
 }
-
