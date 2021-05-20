@@ -42,7 +42,7 @@ def request_handler(request):
                 return "Invalid username"
             if len(username) > 16 or len(username) < 1: return "Please provide a nonempty username with no more than 16 characters"
             with sqlite3.connect(rooms_db) as c:
-                c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer);''')
+                c.execute('''CREATE TABLE IF NOT EXISTS rooms_table (roomname text, password text, host text, player2 text, player3 text, player4 text, player5 text, ingame integer, host_play integer, player2_play integer, player3_play integer, player4_play integer, player5_play integer, start_time real);''')
                 all_rooms =  c.execute('''SELECT * FROM rooms_table''').fetchall()
                 room_list = 'All rooms:'
                 for room in all_rooms:
