@@ -37,7 +37,6 @@ char response[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP request
 char host[] = "608dev-2.net";
 char leader_board_response[2000];
 
-
 int mp3_choice;
 int temp_for_choice;
 
@@ -461,8 +460,6 @@ class SongMenu: public Menu {
         strcpy(song_choice, song_choices[choice]);
         temp_for_choice = choice+1;
         mp3_choice = temp_for_choice;
-        
-        
         menu = Instrument_Menu;
       }
       return choice;
@@ -1011,25 +1008,25 @@ void loop() {
       }
 
    
-      if (!digitalRead(BUTTON)) {
+      if (!digitalRead(BUTTON4)) {
         ledcWrite(PWM_CHANNEL, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL, 0);
       }
-      if(!digitalRead(BUTTON4)){
+      if(!digitalRead(BUTTON2)){
         ledcWrite(PWM_CHANNEL2, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL2, 0);
       }
-      if (!digitalRead(BUTTON2)){
+      if (!digitalRead(BUTTON3)){
         ledcWrite(PWM_CHANNEL3, (4095) - (4095 * 50/100.0));
       }
       else{
         ledcWrite(PWM_CHANNEL3, 0);
       }
-      if (!digitalRead(BUTTON3)){
+      if (!digitalRead(BUTTON)){
         ledcWrite(PWM_CHANNEL4, (4095) - (4095 * 50/100.0));
         ledcWrite(PWM_CHANNEL5, (4095) - (4095 * 50/100.0));
       }
