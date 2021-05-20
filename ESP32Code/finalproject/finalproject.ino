@@ -119,6 +119,10 @@ const uint32_t PWM_CHANNEL3 = 2;
 const uint32_t PWM_CHANNEL4 = 4;
 const uint32_t PWM_CHANNEL5 = 5;
 
+//buzzer pin/pwm
+uint8_t AUDIO_TRANSDUCER = 21;
+uint8_t AUDIO_PWM = 10;
+
 /*----------------------------------
    do_http_request Function:
    Arguments:
@@ -743,6 +747,14 @@ void setup() {
   for (int i = 0; i < MAX_INT_ARRAY_SIZE; i++){
     times[i] += NOTE_OFFSET;
   }
+  
+  pinMode(AUDIO_TRANSDUCER, OUTPUT);
+  //set up AUDIO_PWM which we will control in this lab for music:
+  ledcSetup(AUDIO_PWM, 60, 12);//12 bits of PWM precision
+  ledcWrite(AUDIO_PWM, 60); //60 is a 60% duty cycle for the NFET
+  ledcAttachPin(AUDIO_TRANSDUCER, AUDIO_PWM);
+  ledcWrite(AUDIO_TRANSDUCER, 1);
+  ledcWriteTone(AUDIO_PWM, 0);
 }
 
 
@@ -958,18 +970,38 @@ void loop() {
         should_count[3] = 1;
       }
 
+      bool buzzer_playing = false;
       //Adds points if it could and should be counted
       if (should_count[0] == 1 && could_count[0] == 1 && current_button_state[0] == 1) {
         points += 1;
       }
+      else if (current_button_state[0] == 1 && !buzzer_playing){
+        buzzer_playing = true;
+        ledcWriteTone(AUDIO_PWM, 100);
+      }
       if (should_count[1] == 1 && could_count[1] == 1 && current_button_state[1] == 1) {
         points += 1;
+      }
+      else if (current_button_state[1] == 1 && !buzzer_playing){
+        buzzer_playing = true;
+        ledcWriteTone(AUDIO_PWM, 100);
       }
       if (should_count[2] == 1 && could_count[2] == 1 && current_button_state[2] == 1) {
         points += 1;
       }
+      else if (current_button_state[2] == 1 && !buzzer_playing){
+        buzzer_playing = true;
+        ledcWriteTone(AUDIO_PWM, 100);
+      }
       if (should_count[3] == 1 && could_count[3] == 1 && current_button_state[3] == 1) {
         points += 1;
+      }
+      else if (current_button_state[3] == 1 && !buzzer_playing){
+        buzzer_playing = true;
+        ledcWriteTone(AUDIO_PWM, 100);
+      }
+      if (buzzer_playing == false){
+        ledcWriteTone(AUDIO_PWM, 0);
       }
 
       //Moves curr button state to previous
